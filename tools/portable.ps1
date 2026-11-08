@@ -109,30 +109,45 @@ function Initialize-ConfigFiles {
     }
 }
 
+# Per-user COM entries for a 32-bit in-process server must live in the WOW64
+# ("Wow6432Node") view of HKCU\Software\Classes. Writing the plain key puts them
+# where only 64-bit clients look: a 32-bit player then fails CoCreateInstance
+# with REGDB_E_CLASSNOTREG and silently refuses to build its filter graph.
+$UserClsidRoot32 = 'HKCU:\Software\Classes\Wow6432Node\CLSID'
+$UserClsidRoot64 = 'HKCU:\Software\Classes\CLSID'
+
+function Get-UserPathFor([string]$Root, [string]$Clsid) {
+    $key = Join-Path $Root "$Clsid\InprocServer32"
+    if (-not (Test-Path -LiteralPath $key)) { return $null }
+    $v = (Get-ItemProperty -Path $key -Name '(default)' -ErrorAction SilentlyContinue).'(default)'
+    if ($v) { return $v }
+    return $null
+}
+
 # Returns effective per-user and machine-wide InprocServer32 values for a CLSID.
 function Get-RegistrationInfo([object]$Filter) {
     $clsid = $Filter.Clsid
     $expected = Normalize-Path (Get-ExpectedPath $Filter)
 
-    $userPath = $null
-    $cuKey = "HKCU:\Software\Classes\CLSID\$clsid\InprocServer32"
-    if (Test-Path -LiteralPath $cuKey) {
-        $v = (Get-ItemProperty -Path $cuKey -Name '(default)' -ErrorAction SilentlyContinue).'(default)'
-        if ($v) { $userPath = $v }
-    }
+    # Only the WOW64 view is visible to the 32-bit player, so only that view
+    # counts as registered. A leftover entry in the plain view is reported but
+    # never treated as sufficient.
+    $userPath  = Get-UserPathFor $UserClsidRoot32 $clsid
+    $legacy64  = Get-UserPathFor $UserClsidRoot64 $clsid
 
     $machinePath = $null
-    foreach ($view in @('/reg:64', '/reg:32')) {
+    foreach ($view in @('/reg:32', '/reg:64')) {
         $v = Invoke-RegQuery "HKLM\SOFTWARE\Classes\CLSID\$clsid\InprocServer32" $view
         if ($v) { $machinePath = $v; break }
     }
 
     return [pscustomobject]@{
-        UserPath    = $userPath
-        MachinePath = $machinePath
-        Path        = $(if ($userPath) { $userPath } else { $machinePath })
-        UserOwned   = ($userPath    -and (Normalize-Path $userPath)    -eq $expected)
-        MachineOwned= ($machinePath -and (Normalize-Path $machinePath) -eq $expected)
+        UserPath     = $userPath
+        Legacy64Path = $legacy64
+        MachinePath  = $machinePath
+        Path         = $(if ($userPath) { $userPath } elseif ($legacy64) { $legacy64 } else { $machinePath })
+        UserOwned    = [bool]($userPath -and (Normalize-Path $userPath) -eq $expected)
+        MachineOwned = [bool]($machinePath -and (Normalize-Path $machinePath) -eq $expected)
     }
 }
 
@@ -158,11 +173,12 @@ function Invoke-MachineRegister([object[]]$List) {
 }
 
 function Invoke-PerUserRegister([object[]]$List) {
-    Write-Info "Registering per-user in HKCU\Software\Classes (no admin required)..."
+    Write-Info "Registering per-user in HKCU\Software\Classes\Wow6432Node (32-bit view)..."
     foreach ($f in $List) {
         $path = Get-ExpectedPath $f
         if (-not (Test-Path -LiteralPath $path)) { throw "Missing filter module: $path" }
-        $base = "HKCU:\Software\Classes\CLSID\$($f.Clsid)"
+
+        $base = Join-Path $UserClsidRoot32 $f.Clsid
         New-Item -Path $base -Force | Out-Null
         Set-ItemProperty -Path $base -Name '(default)' -Value $f.Name
         $inproc = Join-Path $base 'InprocServer32'
@@ -170,6 +186,16 @@ function Invoke-PerUserRegister([object[]]$List) {
         Set-ItemProperty -Path $inproc -Name '(default)' -Value $path
         New-ItemProperty -Path $inproc -Name 'ThreadingModel' -Value 'Both' `
             -PropertyType String -Force | Out-Null
+
+        # drop a stale 64-bit-view copy left by an earlier build of this script
+        $legacy = Join-Path $UserClsidRoot64 $f.Clsid
+        if (Test-Path -LiteralPath $legacy) {
+            $lv = Join-Path $legacy 'InprocServer32'
+            $lvp = (Get-ItemProperty -Path $lv -Name '(default)' -ErrorAction SilentlyContinue).'(default)'
+            if ($lvp -and (Normalize-Path $lvp) -eq (Normalize-Path $path)) {
+                Remove-Item -Path $legacy -Recurse -Force
+            }
+        }
         Write-Info "$($f.Clsid) -> $path"
     }
 }
@@ -189,10 +215,16 @@ function Invoke-MachineUnregister([object[]]$List) {
 function Invoke-PerUserUnregister([object[]]$List) {
     Write-Info "Removing per-user registrations owned by this folder..."
     foreach ($f in $List) {
-        $base = "HKCU:\Software\Classes\CLSID\$($f.Clsid)"
-        if (Test-Path -LiteralPath $base) {
-            Remove-Item -Path $base -Recurse -Force
-            Write-Info "$($f.Clsid) removed"
+        $expected = Normalize-Path (Get-ExpectedPath $f)
+        foreach ($root in @($UserClsidRoot32, $UserClsidRoot64)) {
+            $base = Join-Path $root $f.Clsid
+            if (-not (Test-Path -LiteralPath $base)) { continue }
+            $inproc = Join-Path $base 'InprocServer32'
+            $cur = (Get-ItemProperty -Path $inproc -Name '(default)' -ErrorAction SilentlyContinue).'(default)'
+            if ($cur -and (Normalize-Path $cur) -eq $expected) {
+                Remove-Item -Path $base -Recurse -Force
+                Write-Info "$($f.Clsid) removed"
+            }
         }
     }
 }
@@ -210,6 +242,9 @@ function Show-Status {
         if ($info.UserOwned)    { $scope += 'user' }
         if ($scope.Count) {
             Write-Ok ("{0,-13} {1}  -> OK [{2}]" -f $f.File, $f.Clsid, ($scope -join '+'))
+        }
+        elseif ($info.Legacy64Path) {
+            Write-Warn2 ("{0,-13} {1}  -> only in the 64-bit view; the 32-bit player cannot see it" -f $f.File, $f.Clsid)
         }
         elseif ($info.Path) {
             Write-Warn2 ("{0,-13} {1}  -> points elsewhere: {2}" -f $f.File, $f.Clsid, $info.Path)
@@ -235,11 +270,11 @@ function Invoke-Register {
         Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $args | Out-Null
         return 0
     }
-    $pending = Get-PendingFilters
+    $pending = @(Get-PendingFilters)
     if (-not $pending.Count) { Write-Ok "All filters already registered to this folder."; return 0 }
     if ($mode -eq 'machine') { Invoke-MachineRegister $pending }
     else                     { Invoke-PerUserRegister $pending }
-    $left = Get-PendingFilters
+    $left = @(Get-PendingFilters)
     if ($left.Count) {
         Write-Err2 "Registration did not take effect for: $($left.File -join ', ')"
         return 1
@@ -255,6 +290,7 @@ function Invoke-Unregister {
         if ($info.MachineOwned) { $machineList += $f }
         if ($info.UserOwned)    { $userList    += $f }
     }
+    $machineList = @($machineList); $userList = @($userList)
     if (-not $machineList.Count -and -not $userList.Count) {
         Write-Ok "Nothing registered to this folder; nothing to remove."
         return 0
@@ -287,7 +323,7 @@ try {
         'unregister' { exit (Invoke-Unregister) }
 
         'launch' {
-            $pending = Get-PendingFilters
+            $pending = @(Get-PendingFilters)
             if ($pending.Count) {
                 Write-Head "First run / folder moved - registering filters"
                 $rc = Invoke-Register

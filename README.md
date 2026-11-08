@@ -92,6 +92,12 @@ registration is small, points at this folder, and is easy to undo:
 64‑bit Windows the `regsvr32` in `System32` is the 64‑bit build and cannot
 register a 32‑bit DirectShow filter.
 
+For the same reason the per‑user fallback writes to the **WOW64 view**,
+`HKCU\Software\Classes\Wow6432Node\CLSID\…`. An entry in the plain
+`HKCU\Software\Classes\CLSID` is visible only to 64‑bit clients: the 32‑bit
+player then fails `CoCreateInstance` with `REGDB_E_CLASSNOTREG`, builds no filter
+graph and quietly never plays anything.
+
 ---
 
 ## What this touches on your system
@@ -139,6 +145,11 @@ Pass them through the launcher, e.g. `SASAMI2k.cmd /maxscreen "D:\movie.avi"`.
 
 **Nothing happens / launcher exits with code 1** — run `Status.cmd`; it prints the
 folder, whether the player is present, and the registration state.
+
+**A file is accepted but nothing plays** — the filter registration is not visible
+to the 32‑bit player. `Status.cmd` shows this as *"only in the 64‑bit view; the
+32‑bit player cannot see it"*; run `SASAMI2k.cmd` again (it repairs this) or
+`RegisterFilters.cmd` as administrator.
 
 **"Failed to Register …" or video stays black** — the per‑user registration may
 not be visible to the DirectShow filter mapper on your system. Run
