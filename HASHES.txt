@@ -1,9 +1,10 @@
 # SHA-256 manifest - portable SASAMI2k Core #757
-# Files under app/ are byte-exact copies of the original installer payload
-# (all 31 InstallFactory archive records verified by CRC32; see README.md).
+# Covers every tracked file. Files under app/ are byte-exact copies of the
+# original installer payload (all 31 InstallFactory archive records were
+# verified by CRC32 and declared size; see README.md).
 
 f74e09238a04b252a71a6ddbcae0aae316112b4d028492f6dd1b64cc4437d58f       153  .gitattributes
-b0e5fbb44d65ca0f00cc6fb626fc19a651c818baf9cade3d2f4c5f961042d21a        96  .gitignore
+0206652677c054d80405eddc59f719a9d043741398923c35970518a103855c6d       231  .gitignore
 fe0047c2eeda3ae15c824d78d8441ce74ad79fb503231de98ae09283e3c16a82      6188  app/Imgs/Background.bmp
 eb9f70afbf2c8ef9076200168134c3f77ae96456f25ba49e9d704a590f1cc225      1362  app/Imgs/Background_Caption.bmp
 20df402d21e5c40c2e7fa1c2d06d9610c074ba195b4808675d875205cfbb408b     43418  app/Imgs/Background_Controls.bmp
@@ -28,14 +29,14 @@ e3f11f5c0c25f0d024e794b0bf7d5e5ce643f7d4882421273c5741d3ad8c2d39     10000  app/
 ded2b9b70db2c24e64ada3f07df1d56ab24a71c45a1c9ab70bcf786f5342b2c4     59904  app/Sasami2000_CBTHook.dll
 bc406f392841c55ed495811e2ddb412254207730dd11dd16df135908f2b86bac    193536  app/Sasami2000_Translator.exe
 39e8c6209a448c3dfffb7beaa6255bc4a9c15e4c56cbe9a84d422abad981170a        79  app/SASAMI2k Official Homepage.url
-8c5c0e86bfea39b57300301343a6861f2bb2f82636b724796ee24802e35f6a96      3786  app/SASAMI2k.ini
-492430db1c56949ff65b6bf265adc2056e0bf4171ed2b04e6fa544c240965b03      1661  app/SASAMI2k_Translator.ini
+8c5c0e86bfea39b57300301343a6861f2bb2f82636b724796ee24802e35f6a96      3786  app/SASAMI2k.default.ini
+492430db1c56949ff65b6bf265adc2056e0bf4171ed2b04e6fa544c240965b03      1661  app/SASAMI2k_Translator.default.ini
 1c000cc6dd28988fca26dbff37a75e5609288678dc3bbc58bef52086cb184d12     45056  app/Sasami4a.ax
 db52476995d78d293a30098ba5e7f89b659e54aa5c25b33a2b4d46ffa87e9dd2     20480  app/Sasamiv4a.ax
 4e2b22e4c280d19f804bbc3594f8b9c308179f8481f8b61f84e7bd1aeb88ee21    752301  original/sasami2k_757.exe
-a1610d3045a9b9f2f3c7bdc97a1ec789d9020bdf29126d3db9527ae48690c4af      7451  README.md
+ec34f8aa5b817f0b430d23a5bc9f4085f2ede88c75a53da3c54b565e64b108cc      7670  README.md
 764d3a7d204293ea85f6d86b50267c7cb0b4fbd3662d20d85371d3166b55a6a6       594  RegisterFilters.cmd
 b8d0969c137ce9243aace8570ae2718b6c36cd91b2b5cbf961b7c473027dd4be       884  SASAMI2k.cmd
 9a8bd74a33e408a8e6f640f9031e0bcf5cdf4164a54dcdbb26db4179f9e0ac7b       480  Status.cmd
-9925d750f498d43bbddee5b879d710a7af0a891565fea6f5185a3fde739a709b     11472  tools/portable.ps1
+2de1689872e48b5d0a7901916307f5e2b896c4b5c0eafe9f80436eb86290d2f9     12777  tools/portable.ps1
 f7842c05384188b6e6fe595b4bb4f4ca2a6cdf48835eeebdc8da9984e214ef84       505  UnregisterFilters.cmd

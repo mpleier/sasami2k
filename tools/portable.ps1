@@ -49,6 +49,14 @@ $Filters = @(
     [pscustomobject]@{ File = 'Sasamiv4a.ax'; Clsid = '{FD501041-8EBE-11DE-8183-00AA00577DA1}'; Name = "Nuclei's Video for Audio" }
 )
 
+# The player rewrites its settings on exit. Live copies are created from the
+# shipped defaults on first run, so the repository stays clean while preferences
+# still live (and travel) with the folder.
+$ConfigDefaults = @(
+    [pscustomobject]@{ Live = 'SASAMI2k.ini';            Default = 'SASAMI2k.default.ini' }
+    [pscustomobject]@{ Live = 'SASAMI2k_Translator.ini'; Default = 'SASAMI2k_Translator.default.ini' }
+)
+
 function Write-Head([string]$Text)  { Write-Host ""; Write-Host "== $Text" -ForegroundColor Cyan }
 function Write-Info([string]$Text)  { Write-Host "   $Text" }
 function Write-Ok([string]$Text)    { Write-Host "   $Text" -ForegroundColor Green }
@@ -88,6 +96,18 @@ function Invoke-RegQuery([string]$Key, [string]$View) {
 }
 
 function Get-ExpectedPath([object]$Filter) { return (Join-Path $AppDir $Filter.File) }
+
+# Materialises the live settings files from the shipped defaults when absent.
+function Initialize-ConfigFiles {
+    foreach ($c in $ConfigDefaults) {
+        $live = Join-Path $AppDir $c.Live
+        $dflt = Join-Path $AppDir $c.Default
+        if (-not (Test-Path -LiteralPath $live) -and (Test-Path -LiteralPath $dflt)) {
+            Copy-Item -LiteralPath $dflt -Destination $live -Force
+            Write-Info "Created $($c.Live) from $($c.Default)."
+        }
+    }
+}
 
 # Returns effective per-user and machine-wide InprocServer32 values for a CLSID.
 function Get-RegistrationInfo([object]$Filter) {
@@ -257,6 +277,7 @@ function Invoke-Unregister {
 
 try {
     if (-not (Test-Path -LiteralPath $AppDir)) { throw "app folder not found: $AppDir" }
+    Initialize-ConfigFiles
 
     switch ($Action) {
         'status' { Show-Status; exit 0 }
@@ -274,10 +295,18 @@ try {
             }
             if (-not (Test-Path -LiteralPath $PlayerExe)) { throw "player not found: $PlayerExe" }
             Write-Head "Starting SASAMI2k"
+
             $argList = @()
-            if ($PlayerArgs) { $argList = $PlayerArgs }
+            if ($PlayerArgs) {
+                $argList = @($PlayerArgs | Where-Object { $_ -ne $null -and $_ -ne '' })
+            }
             if ($argList.Count) { Write-Info ("args: " + ($argList -join ' ')) }
-            Start-Process -FilePath $PlayerExe -WorkingDirectory $AppDir -ArgumentList $argList | Out-Null
+
+            # NB: Start-Process rejects an empty -ArgumentList on Windows PowerShell 5.1,
+            # so only pass the parameter when there is something to pass.
+            $startParams = @{ FilePath = $PlayerExe; WorkingDirectory = $AppDir }
+            if ($argList.Count) { $startParams['ArgumentList'] = [string[]]$argList }
+            Start-Process @startParams | Out-Null
             exit 0
         }
     }

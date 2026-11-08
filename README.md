@@ -45,8 +45,8 @@ app/
   Sasami4a.ax                 Audio filter              ("Nuclei's Sasami for Audio")
   Sasamiv4a.ax                Video-for-audio filter    ("Nuclei's Video for Audio")
   regsvr32.exe                32-bit Microsoft registration tool (1999)
-  SASAMI2k.ini                Player settings  (portable: lives next to the exe)
-  SASAMI2k_Translator.ini     Translator settings
+  SASAMI2k.default.ini        Shipped player defaults (copied to SASAMI2k.ini on first run)
+  SASAMI2k_Translator.default.ini  Shipped translator defaults
   Imgs/                       Player skin bitmaps
   Languages/                  UI localisations (Default, English, French, Korean,
                               Russian, Swedish, Ukraine)
@@ -95,9 +95,11 @@ register a 32‑bit DirectShow filter.
   verbs `Open` (translator), `Read` (`notepad.exe "%1"`), `Play` and
   `Enqueue` (`… "%1" /Add`). Its documented `/unregister` option removes the
   filters *"and repair[s] associated files"*.
-* **Files** — everything else stays inside this folder; `SASAMI2k.ini` and
-  `SASAMI2k_Translator.ini` are read/written next to the executables, so
-  preferences travel with the folder.
+* **Files** — everything else stays inside this folder. The player writes its
+  preferences to `app\SASAMI2k.ini` (and the translator to
+  `app\SASAMI2k_Translator.ini`); those live files are created from the shipped
+  `*.default.ini` on first run and are deliberately not tracked, so your settings
+  travel with the folder without dirtying the repository. Delete them to reset.
 
 No installer, no service, no background updater, no network access of its own
 (the original installer contains no networking code at all; the only URLs in the

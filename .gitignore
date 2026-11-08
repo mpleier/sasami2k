@@ -5,3 +5,7 @@ app/*.tmp
 *.tmp
 Thumbs.db
 desktop.ini
+
+# live settings - created from app/*.default.ini on first run, written by the player
+app/SASAMI2k.ini
+app/SASAMI2k_Translator.ini
