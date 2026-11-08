@@ -172,6 +172,22 @@ is shipped unpacked (see [PATCHES.md](PATCHES.md)); every file's SHA-256 is in
 
 ---
 
+## Known limitations
+
+* **44.1 kHz MPEG audio crackles.** Clips whose audio is MPEG-1 Layer II at
+  44.1 kHz - typical of the old `.mpg` AMV rips - play with crackling/buzzing.
+  The same video with 48 kHz MPEG audio, or with uncompressed PCM audio, plays
+  cleanly, so the fault is in the decoder DirectShow picks: the built-in
+  `quartz.dll` "MPEG Audio Codec" (`{4A2286E0-7BEF-11CE-9BD9-0000E202599C}`), the
+  only MPEG audio decoder the filter graph builder will select on this system.
+  * Swapping it is not possible with registry values alone: LAV Filters (installed
+    via K-Lite) is registered only as a COM server, with no DirectShow
+    filter-mapper entry, so the graph builder never considers it; and Microsoft's
+    decoder key is owned by `TrustedInstaller` with Administrators read-only, so
+    its merit cannot be lowered either.
+  * Workarounds: let K-Lite's Codec Tweak Tool register LAV properly, or remux
+    the audio to 48 kHz.
+
 ## Provenance and verification
 
 The portable tree is a direct extraction of the installer's InstallFactory
