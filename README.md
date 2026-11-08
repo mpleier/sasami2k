@@ -35,10 +35,12 @@ RegisterFilters.cmd     Machine-wide registration (elevates via UAC)
 UnregisterFilters.cmd   Removes registration again
 Status.cmd              Shows whether the filters point at this folder
 tools/portable.ps1      The logic behind those four scripts
+tools/extract_installer.py  Re-extracts the payload from the original installer
+tools/compat_fixes.py   Reproduces the two compatibility fixes (see PATCHES.md)
 HASHES.txt              SHA-256 of every shipped file
 
 app/
-  sasami2000.exe              The player (Core #757)
+  sasami2000.exe              The player (Core #757), unpacked + one import patch
   Sasami2000_Translator.exe   Subtitle / SMI-S2K script translator
   Sasami2000_CBTHook.dll      WH_CBT helper used for global hotkeys
   Sasami.ax                   Video driver filter       ("Nuclei's Sasami")
@@ -47,7 +49,7 @@ app/
   regsvr32.exe                32-bit Microsoft registration tool (1999)
   SASAMI2k.default.ini        Shipped player defaults (copied to SASAMI2k.ini on first run)
   SASAMI2k_Translator.default.ini  Shipped translator defaults
-  Imgs/                       Player skin bitmaps
+  Imgs/                       Player skin bitmaps (re-encoded to BI_RGB)
   Languages/                  UI localisations (Default, English, French, Korean,
                               Russian, Swedish, Ukraine)
   Plugins/                    Drop Winamp DSP `dsp_*.dll` files here
@@ -56,10 +58,17 @@ app/
 
 original/
   sasami2k_757.exe            The original installer, kept for provenance
+  sasami2000.packed.exe       The player exactly as shipped (UPX-packed, unpatched)
 ```
 
-Both executables were UPX‑packed inside the installer and remain in their
-original shipped form, so their hashes match the archive exactly.
+Two small compatibility fixes were necessary to make a 2001 DirectShow app start
+on Windows 10/11: the skin bitmaps had to be re-encoded from RLE8, and one
+`auxGetNumDevs` import thunk is neutralised. Both are documented byte-for-byte,
+with symptoms, evidence and reproduction steps, in **[PATCHES.md](PATCHES.md)**;
+`original/` keeps the untouched binaries.
+
+Everything else is still byte-identical to the installer payload
+(`Sasami2000_Translator.exe` and the three `.ax` filters are unmodified).
 
 ---
 
@@ -142,9 +151,13 @@ stale path and re‑registers. `Status.cmd` will show `-> points elsewhere: …`
 is `Sasami.Preference.LanguageFile` in `app\SASAMI2k.ini` (a file in
 `app\Languages\`).
 
-**Security software complains** — the original 2001 binaries are unsigned and
-UPX‑packed, which trips generic heuristics. Hashes are in `HASHES.txt`; nothing
-was modified.
+**"Select files to play" appears at startup** — that is the player's normal
+open dialog when it is started without a file. Pass a file to skip it.
+
+**Security software complains** — the 2001 binaries are unsigned and the
+translator is still UPX-packed, which trips generic heuristics. The player itself
+is shipped unpacked (see [PATCHES.md](PATCHES.md)); every file's SHA-256 is in
+`HASHES.txt`.
 
 ---
 
@@ -159,9 +172,16 @@ declared by the installer's own configuration.
 * Original installer SHA-256: `4e2b22e4c280d19f804bbc3594f8b9c308179f8481f8b61f84e7bd1aeb88ee21`
 * Installer payload: 25 files, 7 skin bitmaps, 7 localisations.
 
-The only intentional change to the shipped data: `Sasami.LastDirectory` in
-`app\SASAMI2k.ini` was reset (the original pointed at a folder on the author's
-machine).
+Intentional changes to the shipped data, all documented:
+
+* `app\SASAMI2k.default.ini` — `Sasami.LastDirectory` reset (the original pointed
+  at a folder on the author's machine); the live `.ini` is generated from this file.
+* `app\sasami2000.exe` — unpacked and one import thunk patched (PATCHES.md, fix 2).
+* `app\Imgs\*.bmp` — seven RLE8 bitmaps re-encoded as BI_RGB (PATCHES.md, fix 1).
+
+`tools/extract_installer.py` and `tools/compat_fixes.py` reproduce both the
+pristine payload and the fixed binaries; the shipped artefacts were verified to be
+reproduced byte-for-byte.
 
 ---
 
