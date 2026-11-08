@@ -38,7 +38,7 @@ $ErrorActionPreference = 'Stop'
 $ScriptDir = Split-Path -Parent $PSCommandPath
 $Root      = Split-Path -Parent $ScriptDir
 $AppDir    = Join-Path $Root 'app'
-$PlayerExe = Join-Path $AppDir 'sasami2000.exe'
+$PlayerExe = Join-Path $AppDir 'sasami2k.exe'
 $RegsvrExe = Join-Path $AppDir 'regsvr32.exe'
 
 # CLSIDs and display names as registered by each module's DllRegisterServer

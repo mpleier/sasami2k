@@ -40,7 +40,7 @@ tools/compat_fixes.py   Reproduces the two compatibility fixes (see PATCHES.md)
 HASHES.txt              SHA-256 of every shipped file
 
 app/
-  sasami2000.exe              The player (Core #757), unpacked + one import patch
+  sasami2k.exe                The player (Core #757): unpacked, one import patch, renamed
   Sasami2000_Translator.exe   Subtitle / SMI-S2K script translator
   Sasami2000_CBTHook.dll      WH_CBT helper used for global hotkeys
   Sasami.ax                   Video driver filter       ("Nuclei's Sasami")
@@ -176,7 +176,8 @@ Intentional changes to the shipped data, all documented:
 
 * `app\SASAMI2k.default.ini` — `Sasami.LastDirectory` reset (the original pointed
   at a folder on the author's machine); the live `.ini` is generated from this file.
-* `app\sasami2000.exe` — unpacked and one import thunk patched (PATCHES.md, fix 2).
+* `app\sasami2k.exe` — unpacked, one import thunk patched, and renamed from
+  `sasami2000.exe` to escape a broken Windows compatibility shim (PATCHES.md, fixes 2 and 3).
 * `app\Imgs\*.bmp` — seven RLE8 bitmaps re-encoded as BI_RGB (PATCHES.md, fix 1).
 
 `tools/extract_installer.py` and `tools/compat_fixes.py` reproduce both the

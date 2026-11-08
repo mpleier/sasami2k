@@ -2,6 +2,7 @@
 app/sasami2k_log.txt
 app/*.bak
 app/*.tmp
+app/sasami2k.m3u
 *.tmp
 Thumbs.db
 desktop.ini

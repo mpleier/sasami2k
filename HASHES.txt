@@ -1,9 +1,9 @@
 # SHA-256 manifest - portable SASAMI2k Core #757
-# Covers every tracked file. See PATCHES.md for the two documented fixes and
+# Covers every tracked file. See PATCHES.md for the documented fixes and
 # tools/ for the scripts that reproduce both the pristine payload and the fixes.
 
 f74e09238a04b252a71a6ddbcae0aae316112b4d028492f6dd1b64cc4437d58f       153  .gitattributes
-0206652677c054d80405eddc59f719a9d043741398923c35970518a103855c6d       231  .gitignore
+d3d73971eb27b5565d4a49030c067dd64feef7910d6f0df73cb9ed9ca506a78a       238  .gitignore
 76c24717d9d3aeff5fb31c196e0b5e8ebeeb6ce811205f58b764eb69bef68ad1     77878  app/Imgs/Background.bmp
 ba4e6de7a69ba1b5cff6c6b246b374d804ffd73465fed2c0af8adee805d1960a      2038  app/Imgs/Background_Caption.bmp
 54dd2bc69dffa762486a6c8f133a1346a7013dd66d007a4840d0a914090f866c     64438  app/Imgs/Background_Controls.bmp
@@ -24,22 +24,22 @@ a287a153f595669ddab27913841e1b74fdd895176a4e6ef7df08acc19acb8174      2786  app/
 26ce919da5b54d75c95556efc24146d45929faa820280152a89cf967f4eeaf54      4609  app/README_KOREAN.TXT
 e3f11f5c0c25f0d024e794b0bf7d5e5ce643f7d4882421273c5741d3ad8c2d39     10000  app/regsvr32.exe
 453aeac86146428c355c8735eaf7f4c362c5bc26888b9c74c0cf3d8109682660    159744  app/Sasami.ax
-20b855142ce7cf501f5b69ca9380ddca5993fe9b2717fa91f31b3233c3bf8a06    781824  app/sasami2000.exe
 ded2b9b70db2c24e64ada3f07df1d56ab24a71c45a1c9ab70bcf786f5342b2c4     59904  app/Sasami2000_CBTHook.dll
 bc406f392841c55ed495811e2ddb412254207730dd11dd16df135908f2b86bac    193536  app/Sasami2000_Translator.exe
 39e8c6209a448c3dfffb7beaa6255bc4a9c15e4c56cbe9a84d422abad981170a        79  app/SASAMI2k Official Homepage.url
 8c5c0e86bfea39b57300301343a6861f2bb2f82636b724796ee24802e35f6a96      3786  app/SASAMI2k.default.ini
+20b855142ce7cf501f5b69ca9380ddca5993fe9b2717fa91f31b3233c3bf8a06    781824  app/sasami2k.exe
 492430db1c56949ff65b6bf265adc2056e0bf4171ed2b04e6fa544c240965b03      1661  app/SASAMI2k_Translator.default.ini
 1c000cc6dd28988fca26dbff37a75e5609288678dc3bbc58bef52086cb184d12     45056  app/Sasami4a.ax
 db52476995d78d293a30098ba5e7f89b659e54aa5c25b33a2b4d46ffa87e9dd2     20480  app/Sasamiv4a.ax
 717c68f53815b62cfdf5d79d5b9df6c6db0970227dbbe5d198d002b18758f2c3    311808  original/sasami2000.packed.exe
 4e2b22e4c280d19f804bbc3594f8b9c308179f8481f8b61f84e7bd1aeb88ee21    752301  original/sasami2k_757.exe
-a843ae83343c8ff0ae3ceda42aae917bd92480b31be2ebd009bf61d090c36b53      5009  PATCHES.md
-fb5e3966f9f04807b1e654d3f69bcfa35ecab6d006709ea08bcf5e0e1b4480e1      8986  README.md
+f74e1aba32e9dc934f2c49b312b1f7d2a212fc1e8b5bf85ca73882d69186c552      6196  PATCHES.md
+3edbd4dd994a2d6da62139ed8d65ec8b711619aa7d067db444873c89e8f9f1be      9081  README.md
 764d3a7d204293ea85f6d86b50267c7cb0b4fbd3662d20d85371d3166b55a6a6       594  RegisterFilters.cmd
 b8d0969c137ce9243aace8570ae2718b6c36cd91b2b5cbf961b7c473027dd4be       884  SASAMI2k.cmd
 9a8bd74a33e408a8e6f640f9031e0bcf5cdf4164a54dcdbb26db4179f9e0ac7b       480  Status.cmd
 8fd1b2a7b56f8b2b92aecb7cba1a289c536ff29a7f093e5e581718247ef36bcc      6918  tools/compat_fixes.py
 5925289a6fdc41a9257c34554414ba9b64615c4dc958407152c6338cd4a340d2      2657  tools/extract_installer.py
-2de1689872e48b5d0a7901916307f5e2b896c4b5c0eafe9f80436eb86290d2f9     12777  tools/portable.ps1
+a6059e4c1037a0706e0ea1121d307f97ce465175856dd0decf76ccb16b4bb39d     12775  tools/portable.ps1
 f7842c05384188b6e6fe595b4bb4f4ca2a6cdf48835eeebdc8da9984e214ef84       505  UnregisterFilters.cmd

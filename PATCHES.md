@@ -9,7 +9,7 @@ Everything is reproducible with `tools/extract_installer.py` and
 
 | Artifact | Shipped state | Portable build |
 |---|---|---|
-| `app/sasami2000.exe` | UPX-packed, stock | unpacked + one 6-byte import-thunk patch |
+| `app/sasami2k.exe` | UPX-packed, stock, named `sasami2000.exe` | unpacked, one 6-byte import-thunk patch, renamed |
 | `app/Imgs/*.bmp` | 7 of 8 are BI_RLE8 | re-encoded to BI_RGB, same palette/pixels |
 | everything else | unchanged | unchanged |
 
@@ -91,12 +91,39 @@ Note the executable must be unpacked first — the shipped copy is UPX 1.02 pack
 so the thunk does not exist as such on disk:
 
 ```
-upx -d app/sasami2000.exe            # or original/sasami2000.packed.exe
-python tools/compat_fixes.py exe <unpacked.exe> app/sasami2000.exe
+upx -d original/sasami2000.packed.exe            # -> unpacked sasami2000.exe
+python tools/compat_fixes.py exe <unpacked.exe> app/sasami2k.exe
 ```
 
 Verified with UPX 4.2.4 against the packed 311,808-byte original
 (`781,824` bytes unpacked).
+
+---
+
+## Fix 3 - executable name (`sasami2000.exe` -> `sasami2k.exe`)
+
+**Symptom:** `Unexpected Error (Access violation at ... in module 'AcGenral.DLL'.
+Write of address 00000010)`.
+
+**Cause:** Windows ships an application-compatibility fix for this program. The
+compatibility telemetry log names it explicitly:
+
+```
+Compatibility fix applied to ...\sasami2000.exe.
+Fix information: Sasami 2000, {51c588bf-132d-4a98-b8e6-2de4dfa366f2}, 0x80010101
+```
+
+That fix injects `AcGenral.dll` - the generic shim engine - into the process. The
+shim was written for much older Windows and faults on current builds. The
+selector is the **file name**, not the file contents: the identical bytes under a
+different name are not shimmed and `AcGenral` is never loaded.
+
+**Fix:** ship the player as `sasami2k.exe`. Verified by module enumeration
+(`AcGenral` absent) and by the absence of any new compatibility-fix event.
+
+This does not change what the program does: filters register by CLSID, settings
+live in `SASAMI2k.ini`, and the translator is launched by its own literal file
+name. Only the launcher's `$PlayerExe` points at the new name.
 
 ---
 
