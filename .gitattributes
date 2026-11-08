@@ -1,0 +1,3 @@
+# This repository preserves the original 2001 payload byte-for-byte.
+# Disable all end-of-line conversion so checked-out bytes match HASHES.txt.
+* -text

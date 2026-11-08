@@ -1,0 +1,7 @@
+# runtime artifacts
+app/sasami2k_log.txt
+app/*.bak
+app/*.tmp
+*.tmp
+Thumbs.db
+desktop.ini
