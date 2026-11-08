@@ -93,10 +93,16 @@ def decode_rle8(data, width, height, dataoff):
 
 
 def write_bmp(path, width, height, palette, pixels):
+    """Write an 8bpp BI_RGB BMP.
+
+    ``pixels`` is top-down (row 0 = top). A BMP with a positive height stores
+    rows bottom-up, so the rows are emitted in reverse; getting this wrong
+    renders the whole image upside down.
+    """
     rows = abs(height)
     stride = (width + 3) & ~3
     body = bytearray()
-    for r in range(rows):
+    for r in range(rows - 1, -1, -1):
         body += pixels[r * width:(r + 1) * width]
         body += b'\x00' * (stride - width)
     palette = palette.ljust(1024, b'\x00')[:1024]

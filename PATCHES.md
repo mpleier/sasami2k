@@ -31,6 +31,14 @@ which is exactly the set the message complains about.
 `BI_RGB`, keeping the identical palette and pixel data. `MenuBar_MainMenu.bmp`
 was already `BI_RGB` and is copied through untouched.
 
+Note on orientation: a BMP with positive `biHeight` stores its rows bottom-up,
+while the RLE8 decoder here produces top-down rows. The writer therefore emits
+rows in reverse. Skipping that step still yields a valid, pixel-identical file
+when read back by an RLE-aware loader, but every image renders vertically
+mirrored — the player's whole skin (including its logo) appeared upside down.
+`tools/compat_fixes.py` round-trips all eight bitmaps pixel-for-pixel against the
+originals.
+
 ```
 Background.bmp            320x240   6188 -> 77878 bytes
 Background_Caption.bmp     60x16    1362 ->  2038 bytes

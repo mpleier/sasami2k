@@ -4,14 +4,14 @@
 
 f74e09238a04b252a71a6ddbcae0aae316112b4d028492f6dd1b64cc4437d58f       153  .gitattributes
 0206652677c054d80405eddc59f719a9d043741398923c35970518a103855c6d       231  .gitignore
-ee90ffe230e90bfdacc4f668fe03a8acf8813c70e437f83f2f3a9e80f137c73c     77878  app/Imgs/Background.bmp
-67aecece6ef7c444a07ca8e64e67791cd952be766aed7085e90c5469acd1cfad      2038  app/Imgs/Background_Caption.bmp
-f43502114df14eaac2aa4a7539c00bd77e228182338aba2ccd449a4c26c5d9d7     64438  app/Imgs/Background_Controls.bmp
+76c24717d9d3aeff5fb31c196e0b5e8ebeeb6ce811205f58b764eb69bef68ad1     77878  app/Imgs/Background.bmp
+ba4e6de7a69ba1b5cff6c6b246b374d804ffd73465fed2c0af8adee805d1960a      2038  app/Imgs/Background_Caption.bmp
+54dd2bc69dffa762486a6c8f133a1346a7013dd66d007a4840d0a914090f866c     64438  app/Imgs/Background_Controls.bmp
 e16168bf0fc001b4493f94bf22a526598bbd3360c48ac4b172ef6be7d786e49a      5110  app/Imgs/MenuBar_MainMenu.bmp
-d17430d2128ca9fe4bb134aa41025af5ce124055895f560713a80c2bed0d4552     10678  app/Imgs/MenuBar_PopupMenu.bmp
-794430cbede27b29b7adc629e28e463ae1b986651461ca415599fa72b4a389f4      2230  app/Imgs/TrackBar.bmp
-76177751b588afc9951d796fc697be1195c78154c3491944a17f234b6df527f9      1666  app/Imgs/TrackBar_Tip.bmp
-fbcd593f76df27aebf17876903b08ba9fb886027e1c957a9e2490d14740f4ff8      1438  app/Imgs/Volume_Tip.bmp
+0deef608366c47e47a1fffd3d39171a3e7e2328384ebc2df38ee9956838d164e     10678  app/Imgs/MenuBar_PopupMenu.bmp
+e9e04ad57a5854d6713d5ec4da6a8f88892107fef5224c9b1632b133bfe2904b      2230  app/Imgs/TrackBar.bmp
+00506e329468e02d2a91f75e2d13291ea9aef38837baf8870a2a83481adb7451      1666  app/Imgs/TrackBar_Tip.bmp
+2cfbcdb3ea71d901fe33d95a1d6d0de1f57872b30cee7aff99b967c8f99a6fa0      1438  app/Imgs/Volume_Tip.bmp
 76733ebf7cda730a4168125d9570d34aec0af59b106d94c97ff3fc8a726e0dd9     17709  app/Languages/Default.ini
 76733ebf7cda730a4168125d9570d34aec0af59b106d94c97ff3fc8a726e0dd9     17709  app/Languages/English.ini
 744e65f0eaf313d9e10e4a816cacc2daf216601b95b05bf946e71c0250494a51     19624  app/Languages/French.ini
@@ -34,12 +34,12 @@ bc406f392841c55ed495811e2ddb412254207730dd11dd16df135908f2b86bac    193536  app/
 db52476995d78d293a30098ba5e7f89b659e54aa5c25b33a2b4d46ffa87e9dd2     20480  app/Sasamiv4a.ax
 717c68f53815b62cfdf5d79d5b9df6c6db0970227dbbe5d198d002b18758f2c3    311808  original/sasami2000.packed.exe
 4e2b22e4c280d19f804bbc3594f8b9c308179f8481f8b61f84e7bd1aeb88ee21    752301  original/sasami2k_757.exe
-ef245091817421ad24c069feb3bde1d4183783f646f09c8e59b7822a93171009      4516  PATCHES.md
+a843ae83343c8ff0ae3ceda42aae917bd92480b31be2ebd009bf61d090c36b53      5009  PATCHES.md
 fb5e3966f9f04807b1e654d3f69bcfa35ecab6d006709ea08bcf5e0e1b4480e1      8986  README.md
 764d3a7d204293ea85f6d86b50267c7cb0b4fbd3662d20d85371d3166b55a6a6       594  RegisterFilters.cmd
 b8d0969c137ce9243aace8570ae2718b6c36cd91b2b5cbf961b7c473027dd4be       884  SASAMI2k.cmd
 9a8bd74a33e408a8e6f640f9031e0bcf5cdf4164a54dcdbb26db4179f9e0ac7b       480  Status.cmd
-46479e849d13b2343ef09ff996b76445835585cbb2424d21c17b77362b4d3ec6      6664  tools/compat_fixes.py
+8fd1b2a7b56f8b2b92aecb7cba1a289c536ff29a7f093e5e581718247ef36bcc      6918  tools/compat_fixes.py
 5925289a6fdc41a9257c34554414ba9b64615c4dc958407152c6338cd4a340d2      2657  tools/extract_installer.py
 2de1689872e48b5d0a7901916307f5e2b896c4b5c0eafe9f80436eb86290d2f9     12777  tools/portable.ps1
 f7842c05384188b6e6fe595b4bb4f4ca2a6cdf48835eeebdc8da9984e214ef84       505  UnregisterFilters.cmd
