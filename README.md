@@ -46,7 +46,7 @@ app/
   Sasami.ax                   Video driver filter       ("Nuclei's Sasami")
   Sasami4a.ax                 Audio filter              ("Nuclei's Sasami for Audio")
   Sasamiv4a.ax                Video-for-audio filter    ("Nuclei's Video for Audio")
-  regsvr32.exe                32-bit Microsoft registration tool (1999)
+  regsvr32.exe                32-bit registration tool (1999); fallback only
   SASAMI2k.default.ini        Shipped player defaults (copied to SASAMI2k.ini on first run)
   SASAMI2k_Translator.default.ini  Shipped translator defaults
   Imgs/                       Player skin bitmaps (re-encoded to BI_RGB)
@@ -77,7 +77,8 @@ Everything else is still byte-identical to the installer payload
 SASAMI2k builds its filter graph through COM, so the three `.ax` modules must be
 registered before the player can create them. The original installer did this
 silently with `Sasami2000.exe /register`, which in turn runs
-`regsvr32.exe /s <path>\<name>.ax`.
+`regsvr32.exe /s <path>\<name>.ax`, using the 32-bit build from
+`%SystemRoot%\SysWOW64`.
 
 Being a DirectShow app, it cannot be *completely* registry‑free — but the
 registration is small, points at this folder, and is easy to undo:
@@ -88,9 +89,10 @@ registration is small, points at this folder, and is easy to undo:
 | `Sasami4a.ax` | `{6FFBDFFE-C9CE-11DB-BBAA-52544C191AD1}` | same |
 | `Sasamiv4a.ax` | `{FD501041-8EBE-11DE-8183-00AA00577DA1}` | same |
 
-`RegisterFilters.cmd` uses the **bundled 32‑bit** `regsvr32.exe` on purpose: on
-64‑bit Windows the `regsvr32` in `System32` is the 64‑bit build and cannot
-register a 32‑bit DirectShow filter.
+`RegisterFilters.cmd` runs the system's **32‑bit** `regsvr32.exe` from
+`%SystemRoot%\SysWOW64`: on 64‑bit Windows the `regsvr32` in `System32` is the
+64‑bit build and cannot register a 32‑bit DirectShow filter. The 1999 copy the
+installer shipped is kept only as a fallback for hosts without `SysWOW64`.
 
 For the same reason the per‑user fallback writes to the **WOW64 view**,
 `HKCU\Software\Classes\Wow6432Node\CLSID\…`. An entry in the plain
@@ -103,13 +105,17 @@ graph and quietly never plays anything.
 ## What this touches on your system
 
 * **Registry (filters)** — the three `CLSID` keys above, either machine‑wide
-  (`HKLM\SOFTWARE\Classes\CLSID\…`) or per‑user (`HKCU\Software\Classes\CLSID\…`).
-  `UnregisterFilters.cmd` removes them.
-* **Registry (file types)** — on startup the player ensures/repairs its own
-  associations: `HKCR\.mms`, `.asx`, `.smi`, `.s2k` plus `Sasami2k.<ext>` with the
-  verbs `Open` (translator), `Read` (`notepad.exe "%1"`), `Play` and
-  `Enqueue` (`… "%1" /Add`). Its documented `/unregister` option removes the
-  filters *"and repair[s] associated files"*.
+  (`HKLM\SOFTWARE\Classes\WOW6432Node\CLSID\…`) or per‑user
+  (`HKCU\Software\Classes\Wow6432Node\CLSID\…`). The **WOW64 view is
+  required**: these are 32‑bit filters, and an entry in the plain
+  `CLSID` key is invisible to the 32‑bit player. `UnregisterFilters.cmd` removes them.
+* **Registry (file types)** — nothing is changed by a normal launch. The binary
+  does contain association‑repair code and strings (`.mms`, `.asx`, `.smi`, `.s2k`
+  ProgIDs with `Open`/`Read`/`Play`/`Enqueue` verbs), and the built‑in help
+  documents `/unregister` as *"unregister sasami filters, and repair associated
+  files"*. On this build, however, neither a normal start nor `sasami2k.exe
+  /register` created or modified any file association — checked by comparing
+  `HKCU`/`HKLM` classes entries before and after.
 * **Files** — everything else stays inside this folder. The player writes its
   preferences to `app\SASAMI2k.ini` (and the translator to
   `app\SASAMI2k_Translator.ini`); those live files are created from the shipped

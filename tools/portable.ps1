@@ -39,7 +39,14 @@ $ScriptDir = Split-Path -Parent $PSCommandPath
 $Root      = Split-Path -Parent $ScriptDir
 $AppDir    = Join-Path $Root 'app'
 $PlayerExe = Join-Path $AppDir 'sasami2k.exe'
-$RegsvrExe = Join-Path $AppDir 'regsvr32.exe'
+# Machine-wide (un)registration runs regsvr32 on the filter modules. Prefer the
+# system's 32-bit regsvr32: System32\regsvr32.exe is the 64-bit build and cannot
+# register a 32-bit DirectShow filter, but SysWOW64\regsvr32.exe is the matching
+# 32-bit one. The bundled copy (a 1999-era build shipped with the installer) is
+# only a fallback for hosts without SysWOW64.
+$SystemRegsvr  = Join-Path $env:SystemRoot 'SysWOW64\regsvr32.exe'
+$BundledRegsvr = Join-Path $AppDir 'regsvr32.exe'
+$RegsvrExe     = if (Test-Path -LiteralPath $SystemRegsvr) { $SystemRegsvr } else { $BundledRegsvr }
 
 # CLSIDs and display names as registered by each module's DllRegisterServer
 # (recovered from the AMOVIESETUP_FILTER records in the binaries).
@@ -162,8 +169,8 @@ function Get-PendingFilters {
 }
 
 function Invoke-MachineRegister([object[]]$List) {
-    if (-not (Test-Path -LiteralPath $RegsvrExe)) { throw "Missing $RegsvrExe" }
-    Write-Info "Registering with the bundled 32-bit regsvr32.exe (machine-wide)..."
+    if (-not (Test-Path -LiteralPath $RegsvrExe)) { throw "No 32-bit regsvr32.exe available (looked for $SystemRegsvr and $BundledRegsvr)" }
+    Write-Info ("Registering with the 32-bit regsvr32 ({0}) (machine-wide)..." -f (Split-Path -Leaf (Split-Path -Parent $RegsvrExe)))
     foreach ($f in $List) {
         $path = Get-ExpectedPath $f
         if (-not (Test-Path -LiteralPath $path)) { throw "Missing filter module: $path" }
@@ -201,8 +208,8 @@ function Invoke-PerUserRegister([object[]]$List) {
 }
 
 function Invoke-MachineUnregister([object[]]$List) {
-    if (-not (Test-Path -LiteralPath $RegsvrExe)) { throw "Missing $RegsvrExe" }
-    Write-Info "Unregistering machine-wide entries with the bundled regsvr32.exe..."
+    if (-not (Test-Path -LiteralPath $RegsvrExe)) { throw "No 32-bit regsvr32.exe available (looked for $SystemRegsvr and $BundledRegsvr)" }
+    Write-Info ("Unregistering machine-wide entries with {0}..." -f (Split-Path -Leaf $RegsvrExe))
     foreach ($f in $List) {
         $path = Get-ExpectedPath $f
         if (Test-Path -LiteralPath $path) {
