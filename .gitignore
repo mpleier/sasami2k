@@ -10,3 +10,6 @@ desktop.ini
 # live settings - created from app/*.default.ini on first run, written by the player
 app/SASAMI2k.ini
 app/SASAMI2k_Translator.ini
+
+# build output (tools\build.ps1)
+build/

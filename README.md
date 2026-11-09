@@ -37,6 +37,8 @@ Status.cmd              Shows whether the filters point at this folder
 tools/portable.ps1      The logic behind those four scripts
 tools/extract_installer.py  Re-extracts the payload from the original installer
 tools/compat_fixes.py   Reproduces the two compatibility fixes (see PATCHES.md)
+tools/build.ps1         Rebuilds the whole app\ tree from original\sasami2k_757.exe
+tools/upx/              Vendored UPX 4.2.4, used by the build to unpack the player
 HASHES.txt              SHA-256 of every shipped file
 
 app/
@@ -69,6 +71,37 @@ with symptoms, evidence and reproduction steps, in **[PATCHES.md](PATCHES.md)**;
 
 Everything else is still byte-identical to the installer payload
 (`Sasami2000_Translator.exe` and the three `.ax` filters are unmodified).
+
+---
+
+## Rebuilding from the installer
+
+Everything under `app\` is derived and can be regenerated from the pristine
+installer in one step:
+
+```
+powershell -ExecutionPolicy Bypass -File tools\build.ps1
+```
+
+The script verifies the installer's SHA-256, extracts the CRC-checked payload,
+UPX-unpacks the player, applies the import-thunk patch, re-encodes the seven skin
+bitmaps, derives the `*.default.ini` files, copies the launcher, and then checks
+every produced file against `HASHES.txt`. A clean run ends with:
+
+```
+==> Verifying against HASHES.txt
+    all 39 manifest entries reproduce exactly
+```
+
+Requirements: Windows PowerShell 5.1 and Python 3 on `PATH`. UPX is vendored in
+`tools\upx\` (GPL, see `tools\upx\README-SASAMI2k.txt`); pass `-Upx <path>` to
+use a different build. Output defaults to `build\portable` (`-OutDir`), and
+`-KeepWork` keeps the temporary extraction for inspection.
+
+`original\` (the pristine installer) and `tools\upx\` (rebuild-only tooling) are
+inputs, so they are deliberately not copied into the output and are excluded from
+the output verification. The built tree is self-contained: running its
+`SASAMI2k.cmd` re-points the filter registration at itself.
 
 ---
 
