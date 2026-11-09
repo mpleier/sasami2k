@@ -39,6 +39,8 @@ tools/extract_installer.py  Re-extracts the payload from the original installer
 tools/compat_fixes.py   Reproduces the two compatibility fixes (see PATCHES.md)
 tools/build.ps1         Rebuilds the whole app\ tree from original\sasami2k_757.exe
 tools/upx/              Vendored UPX 4.2.4, used by the build to unpack the player
+tools/make-singlefile.ps1  Packs the built tree into one self-extracting .exe
+tools/singlefile/       Bootstrapper source for that executable
 HASHES.txt              SHA-256 of every shipped file
 
 app/
@@ -102,6 +104,37 @@ use a different build. Output defaults to `build\portable` (`-OutDir`), and
 inputs, so they are deliberately not copied into the output and are excluded from
 the output verification. The built tree is self-contained: running its
 `SASAMI2k.cmd` re-points the filter registration at itself.
+
+---
+
+## Single-file build
+
+`tools\make-singlefile.ps1` packs the whole portable tree into one executable:
+
+```
+powershell -ExecutionPolicy Bypass -File tools\make-singlefile.ps1
+-> build\SASAMI2k-portable.exe   (~783 KB incl. a ~774 KB payload)
+```
+
+The executable is a small .NET bootstrapper with a ZIP payload appended behind a
+24-byte footer (`S2KSFX01`, offset, length). On first run it unpacks the tree next
+to itself into `SASAMI2k.data\` - or into `%LOCALAPPDATA%\SASAMI2k.data\` when
+that folder is not writable - records a stamp so later runs skip extraction, and
+then invokes the normal `tools\portable.ps1 launch` with whatever arguments it was
+given. Settings persist in `SASAMI2k.data\app\SASAMI2k.ini`, and a short
+`SASAMI2k.data\launch.log` records each launcher invocation.
+
+```
+SASAMI2k-portable.exe "D:\movie.avi"
+SASAMI2k-portable.exe /fullscreen "D:\movie.avi"
+```
+
+The build self-tests: it extracts the payload to a temporary folder and compares
+every file against the source tree before reporting success (41/41 byte-identical).
+
+Requirements: `csc.exe` from .NET Framework 4.x (present on Windows 10/11) and
+PowerShell 5.1. The payload ZIP is written with fixed entry timestamps, so building
+the same tree twice produces the same executable.
 
 ---
 
