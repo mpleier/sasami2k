@@ -127,6 +127,37 @@ name. Only the launcher's `$PlayerExe` points at the new name.
 
 ---
 
+## Launcher note — start the player with CreateProcess, not ShellExecute
+
+No binary change, but the same class of first-run failure.
+
+**Symptom:** on hosts that prompt for unsigned programs, every launch of the
+portable tree raises *"Open File - Security Warning — the publisher could not be
+verified"* naming `app\sasami2k.exe`, with *Run* / *Cancel* / *Always ask before
+opening this file*.
+
+**Cause:** the 2001 executable is unsigned, and starting it through the shell
+(`Start-Process`, `ShellExecute`, a shortcut, an "Open with" entry) routes it
+through the Attachment Manager, which refuses to run an unverified publisher
+without confirmation. The file itself carries no `Zone.Identifier`, so this is
+not a "downloaded file" mark — it is the unsigned-binary prompt.
+
+**Fix:** `tools/portable.ps1 launch` starts the player with
+`ProcessStartInfo { UseShellExecute = $false }`, i.e. plain `CreateProcess`,
+which has no such policy attached. Verified by counting *Open File - Security
+Warning* windows before and after a launch (0 new), with the player still
+starting on the requested file. Elevation paths (`register -Machine`,
+`unregister -Machine`) still use `Start-Process -Verb RunAs`, because UAC
+consent genuinely requires the shell.
+
+The same mistake in `tools/make-singlefile.ps1` was worse: its self-test ran the
+freshly built (unsigned) bootstrapper with `Start-Process … -Wait`, so on such a
+host the prompt appeared, nobody answered it and the build hung forever after
+reporting a finished executable. It now uses `CreateProcess` + `WaitForExit`, and
+a full run ends with `all 46 files extract byte-identically`.
+
+---
+
 ## What was *not* changed
 
 * No other code, import, string, resource, or section was touched.

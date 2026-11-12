@@ -1,6 +1,7 @@
 # SHA-256 manifest - portable SASAMI2k Core #757
 # Covers every tracked file. See PATCHES.md for the documented fixes and
 # tools/ for the scripts that reproduce both the pristine payload and the fixes.
+# Regenerate with: python tools/manifest.py write
 
 f74e09238a04b252a71a6ddbcae0aae316112b4d028492f6dd1b64cc4437d58f       153  .gitattributes
 0ef2835c24ddd688059b3bba6ed7bdd3f41cdde889d57a577842264808df03c9       293  .gitignore
@@ -32,22 +33,25 @@ bc406f392841c55ed495811e2ddb412254207730dd11dd16df135908f2b86bac    193536  app/
 492430db1c56949ff65b6bf265adc2056e0bf4171ed2b04e6fa544c240965b03      1661  app/SASAMI2k_Translator.default.ini
 1c000cc6dd28988fca26dbff37a75e5609288678dc3bbc58bef52086cb184d12     45056  app/Sasami4a.ax
 db52476995d78d293a30098ba5e7f89b659e54aa5c25b33a2b4d46ffa87e9dd2     20480  app/Sasamiv4a.ax
+be720dc0d4f2c9a5ad1f8b9fc3ebb844da17cea409b13c3f1befefe06fff9f00       617  Associate.cmd
 717c68f53815b62cfdf5d79d5b9df6c6db0970227dbbe5d198d002b18758f2c3    311808  original/sasami2000.packed.exe
 4e2b22e4c280d19f804bbc3594f8b9c308179f8481f8b61f84e7bd1aeb88ee21    752301  original/sasami2k_757.exe
-f74e1aba32e9dc934f2c49b312b1f7d2a212fc1e8b5bf85ca73882d69186c552      6196  PATCHES.md
-1b10d8bdc2412b884c4dbbe7b520817c7a286c056a675a99bad08a6595c5cc9d     14041  README.md
+32933a32eb75ca441d99acc9ea37726cf374f9d5bfc29d787b30c5571e04e321      7869  PATCHES.md
+4bfafdbf70a5b826195d888ebb3a358e38eae284b0b91baf3b278366f15ccd5c     18593  README.md
 764d3a7d204293ea85f6d86b50267c7cb0b4fbd3662d20d85371d3166b55a6a6       594  RegisterFilters.cmd
 b8d0969c137ce9243aace8570ae2718b6c36cd91b2b5cbf961b7c473027dd4be       884  SASAMI2k.cmd
-9a8bd74a33e408a8e6f640f9031e0bcf5cdf4164a54dcdbb26db4179f9e0ac7b       480  Status.cmd
-e9630b4e56e433a2afe1110db7d13220576cef7f39bcf56c8d4f89f235e6ab05     12299  tools/build.ps1
+a50345afedfbe88e9185ca99791ef907fdc93e4f40427934507ce6ae52be0c40       614  Status.cmd
+a9667e6c80c5c6be26b8a880ed631c2019be543cd101fded1bcd4ebcebf51632     12774  tools/build.ps1
 8fd1b2a7b56f8b2b92aecb7cba1a289c536ff29a7f093e5e581718247ef36bcc      6918  tools/compat_fixes.py
 5925289a6fdc41a9257c34554414ba9b64615c4dc958407152c6338cd4a340d2      2657  tools/extract_installer.py
-767bc1cbb6cfe58fa3bb5609b055329b014f00b49ad44917f622ad15ffc85b0f      8061  tools/make-singlefile.ps1
-c16d4af983bb9a1f927aed03ba67814af4add0aa7727a976fe441d5424857134     15516  tools/portable.ps1
+7a3e89d3422f6259dbfff40f1fbf528e77c82afea8a43e6f365d6ee554c6fc7e      8512  tools/make-singlefile.ps1
+110f804fa069c41114c97971e739cd99498b790566297f53f38a09fe94bc2cf1      4764  tools/manifest.py
+ea626ba738e0f8e906326bfaf6fe37bdb99ce011104aaa6b8124245d90374f3c     26448  tools/portable.ps1
 0ba708f785dec1fe96f770c61182348d7d100a6f5e19a1b128a92305b9e34ebc      9078  tools/singlefile/Bootstrapper.cs
 8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643     18092  tools/upx/COPYING.txt
 905d4a66d5324e154d976bbf88829d4d9263815a2b97cc40954f06d4a23c28eb      5448  tools/upx/LICENSE.txt
-02956664b85d5add827bea2358baa28c31afbaa1eb4b70dc067dbd866e08bf6a      3728  tools/upx/README.txt
 4af796d285d732b0f66b203f9b1de27fac86c5a229524c309a5d4653e42355b6       516  tools/upx/README-SASAMI2k.txt
+02956664b85d5add827bea2358baa28c31afbaa1eb4b70dc067dbd866e08bf6a      3728  tools/upx/README.txt
 b84ec2578a0a202aa84d3c41b4549dddb6dded096baa8d732b1c0cb0518c66f8    565760  tools/upx/upx.exe
+3fec4f2f4e51ff556fcce3e08e34088e2da61bd1de12648e9964922d5ac217e0       474  Unassociate.cmd
 f7842c05384188b6e6fe595b4bb4f4ca2a6cdf48835eeebdc8da9984e214ef84       505  UnregisterFilters.cmd

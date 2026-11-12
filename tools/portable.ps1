@@ -17,7 +17,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('launch', 'register', 'unregister', 'status')]
+    [ValidateSet('launch', 'register', 'unregister', 'status', 'verify', 'associate', 'unassociate')]
     [string]$Action = 'launch',
 
     # Force per-user registration (no elevation).
@@ -25,6 +25,9 @@ param(
 
     # Force machine-wide registration (elevates if needed).
     [switch]$Machine,
+
+    # Extension list for the associate/unassociate actions.
+    [string[]]$Extensions = @('.mms', '.asx', '.smi', '.s2k'),
 
     # Anything after the action is passed through to the player, e.g.:
     #   SASAMI2k.cmd "D:\movie.avi"
@@ -236,6 +239,200 @@ function Invoke-PerUserUnregister([object[]]$List) {
     }
 }
 
+# ---------------------------------------------------------------- integrity
+$ManifestPath = Join-Path $Root 'HASHES.txt'
+
+# Repository files that are intentionally not in the manifest: build output,
+# per-user runtime state, and scratch notes.
+$ManifestIgnorePrefixes = @('build/', '.git/')
+$ManifestIgnoreNames    = @('HASHES.txt', 'SASAMI2k.ini', 'SASAMI2k_Translator.ini', 'sasami2k.m3u', 'IDEA.md')
+
+function Read-Manifest {
+    $entries = [ordered]@{}
+    foreach ($line in Get-Content -LiteralPath $ManifestPath) {
+        if ($line -match '^\s*#') { continue }
+        if ($line -match '^([0-9a-f]{64})\s+(\d+)\s+(\S.*?)\s*$') {
+            $entries[$Matches[3]] = [pscustomobject]@{ Hash = $Matches[1]; Size = [long]$Matches[2] }
+        }
+    }
+    return $entries
+}
+
+# Checks the tree against HASHES.txt. Returns the number of problems found, so
+# callers can also report "0 = verified".
+function Invoke-Verify {
+    Write-Head "Integrity check"
+    if (-not (Test-Path -LiteralPath $ManifestPath)) {
+        Write-Err2 "HASHES.txt not found next to the launcher."
+        return 1
+    }
+    $manifest = Read-Manifest
+    Write-Info ("manifest : {0} entries" -f $manifest.Count)
+
+    $bad = 0
+    $checked = 0
+    $missing = @(); $changed = @()
+    foreach ($rel in $manifest.Keys) {
+        $path = Join-Path $Root ($rel -replace '/', '\')
+        if (-not (Test-Path -LiteralPath $path)) { $missing += $rel; continue }
+        $item = Get-Item -LiteralPath $path
+        if ($item.Length -ne $manifest[$rel].Size) { $changed += "$rel (size $($item.Length) != $($manifest[$rel].Size))"; continue }
+        $h = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($h -ne $manifest[$rel].Hash) { $changed += "$rel (sha256 $h)" }
+        $checked++
+    }
+
+    # Tracked-but-unlisted files are reported but do not fail the check: the
+    # manifest describes shipped files, not personal notes or build output.
+    $unlisted = @()
+    Get-ChildItem -LiteralPath $Root -Recurse -File -Force -ErrorAction SilentlyContinue | ForEach-Object {
+        $rel = $_.FullName.Substring($Root.Length + 1) -replace '\\', '/'
+        if ($ManifestIgnoreNames -contains $_.Name) { return }
+        foreach ($p in $ManifestIgnorePrefixes) { if ($rel.StartsWith($p, 'OrdinalIgnoreCase')) { return } }
+        if (-not $manifest.Contains($rel)) { $unlisted += $rel }
+    }
+
+    if ($missing.Count) { Write-Warn2 ("missing ({0}):" -f $missing.Count); $missing | ForEach-Object { Write-Warn2 "  $_" }; $bad += $missing.Count }
+    if ($changed.Count) { Write-Err2 ("changed ({0}):" -f $changed.Count); $changed | ForEach-Object { Write-Err2 "  $_" }; $bad += $changed.Count }
+    if ($unlisted.Count) { Write-Warn2 ("not in manifest ({0}):" -f $unlisted.Count); $unlisted | ForEach-Object { Write-Warn2 "  $_" } }
+
+    if ($bad -eq 0) {
+        Write-Ok ("all {0} shipped files match HASHES.txt" -f $checked)
+    }
+    return $bad
+}
+
+# ------------------------------------------------------------- associations
+# File associations are opted into explicitly and are per-user only: they live
+# under HKCU\Software\Classes and never touch machine-wide keys.
+$ProgId           = 'SASAMI2k.Media'
+$AssocMarker      = 'HKCU:\Software\SASAMI2k'
+$UserClasses      = 'HKCU:\Software\Classes'
+$LauncherCmd      = Join-Path $Root 'SASAMI2k.cmd'
+$AssocIconSource  = $PlayerExe
+
+function Normalize-Ext([string]$Ext) {
+    if (-not $Ext) { return '' }
+    $e = $Ext.Trim()
+    if (-not $e.StartsWith('.')) { $e = '.' + $e }
+    return $e.ToLowerInvariant()
+}
+
+function Get-RecordedExtensions {
+    $key = Join-Path $AssocMarker 'Associated'
+    if (-not (Test-Path -LiteralPath $key)) { return @() }
+    return @((Get-Item -LiteralPath $key).Property | Where-Object { $_ -notmatch '^PS' })
+}
+
+function Invoke-Associate {
+    Write-Head "Registering per-user file associations"
+    if (-not (Test-Path -LiteralPath $LauncherCmd)) { throw "launcher not found: $LauncherCmd" }
+
+    $openCmd    = '"{0}" "%1"' -f $LauncherCmd
+    $enqueueCmd = '"{0}" "%1" /add' -f $LauncherCmd
+
+    # The ProgID: default verb plus the player's own /add switch as a second verb.
+    $prog = Join-Path $UserClasses $ProgId
+    New-Item -Path $prog -Force | Out-Null
+    Set-ItemProperty -Path $prog -Name '(default)' -Value 'SASAMI2k media file'
+    New-Item -Path (Join-Path $prog 'DefaultIcon') -Force | Out-Null
+    Set-ItemProperty -Path (Join-Path $prog 'DefaultIcon') -Name '(default)' -Value ('"{0}",0' -f $AssocIconSource)
+    foreach ($verb in @(@('open', '&Play in SASAMI2k', $openCmd), @('enqueue', '&Enqueue in SASAMI2k', $enqueueCmd))) {
+        $cmdKey = Join-Path $prog ('shell\{0}\command' -f $verb[0])
+        New-Item -Path $cmdKey -Force | Out-Null
+        Set-ItemProperty -Path $cmdKey -Name '(default)' -Value $verb[2]
+        Set-ItemProperty -Path (Split-Path -Parent $cmdKey) -Name '(default)' -Value $verb[1]
+    }
+
+    # Created once, outside the loop: New-Item -Force on an existing registry key
+    # clears it, which would drop the extensions recorded by earlier iterations.
+    $recordKey = Join-Path $AssocMarker 'Associated'
+    New-Item -Path $recordKey -Force | Out-Null
+
+    $done = @()
+    foreach ($raw in $Extensions) {
+        $ext = Normalize-Ext $raw
+        if (-not $ext) { continue }
+        $extKey = Join-Path $UserClasses $ext
+        $previous = $null
+        if (Test-Path -LiteralPath $extKey) {
+            $previous = (Get-ItemProperty -Path $extKey -Name '(default)' -ErrorAction SilentlyContinue).'(default)'
+        }
+        if ($previous -and $previous -ne $ProgId) {
+            # remember what we are about to shadow so unassociate can restore it
+            $prevKey = Join-Path $AssocMarker ('Previous\' + $ext.TrimStart('.'))
+            New-Item -Path $prevKey -Force | Out-Null
+            Set-ItemProperty -Path $prevKey -Name 'ProgId' -Value $previous
+            Write-Warn2 ("{0} was {1} (recorded; unassociate restores it)" -f $ext, $previous)
+        }
+        New-Item -Path $extKey -Force | Out-Null
+        Set-ItemProperty -Path $extKey -Name '(default)' -Value $ProgId
+        $openWith = Join-Path $extKey 'OpenWithProgids'
+        New-Item -Path $openWith -Force | Out-Null
+        New-ItemProperty -Path $openWith -Name $ProgId -Value ([byte[]]@()) -PropertyType Binary -Force | Out-Null
+        New-ItemProperty -Path $recordKey -Name $ext -Value $ProgId -PropertyType String -Force | Out-Null
+        $done += $ext
+    }
+    Write-Ok ("associated: {0}" -f ($done -join ' '))
+    Write-Info "per-user only (HKCU\Software\Classes); 'Unassociate.cmd' reverses it."
+    return 0
+}
+
+function Invoke-Unassociate {
+    Write-Head "Removing per-user file associations"
+    $recorded = @(Get-RecordedExtensions)
+    if (-not $recorded.Count) { Write-Ok "No associations recorded; nothing to remove."; return 0 }
+
+    $removed = @()
+    foreach ($ext in $recorded) {
+        $extKey = Join-Path $UserClasses $ext
+        $current = $null
+        if (Test-Path -LiteralPath $extKey) {
+            $current = (Get-ItemProperty -Path $extKey -Name '(default)' -ErrorAction SilentlyContinue).'(default)'
+        }
+        if ($current -eq $ProgId) {
+            $prevKey = Join-Path $AssocMarker ('Previous\' + $ext.TrimStart('.'))
+            $previous = (Get-ItemProperty -Path $prevKey -Name 'ProgId' -ErrorAction SilentlyContinue).ProgId
+            if ($previous) {
+                Set-ItemProperty -Path $extKey -Name '(default)' -Value $previous
+                Write-Info ("{0} restored to {1}" -f $ext, $previous)
+            }
+            else {
+                Remove-ItemProperty -Path $extKey -Name '(default)' -ErrorAction SilentlyContinue
+                Write-Info ("{0} default handler cleared" -f $ext)
+            }
+        }
+        else {
+            Write-Info ("{0} points at {1}; left alone" -f $ext, $current)
+        }
+
+        # take out only this script's own contribution, then prune the keys if
+        # nothing else is left in them.
+        $openWith = Join-Path $extKey 'OpenWithProgids'
+        if (Test-Path -LiteralPath $openWith) {
+            Remove-ItemProperty -Path $openWith -Name $ProgId -ErrorAction SilentlyContinue
+            $leftVals = @((Get-Item -LiteralPath $openWith).Property | Where-Object { $_ -notmatch '^PS' })
+            if (-not $leftVals.Count) { Remove-Item -Path $openWith -Force -ErrorAction SilentlyContinue }
+        }
+        if (Test-Path -LiteralPath $extKey) {
+            $leftVals = @((Get-Item -LiteralPath $extKey).Property | Where-Object { $_ -notmatch '^PS' })
+            $leftKeys = @(Get-ChildItem -LiteralPath $extKey -Force -ErrorAction SilentlyContinue)
+            if (-not $leftVals.Count -and -not $leftKeys.Count) { Remove-Item -Path $extKey -Force -ErrorAction SilentlyContinue }
+        }
+        $removed += $ext
+    }
+
+    $prog = Join-Path $UserClasses $ProgId
+    if (Test-Path -LiteralPath $prog) { Remove-Item -Path $prog -Recurse -Force }
+    Remove-Item -Path (Join-Path $AssocMarker 'Associated') -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path (Join-Path $AssocMarker 'Previous') -Recurse -Force -ErrorAction SilentlyContinue
+    if ((Test-Path -LiteralPath $AssocMarker) -and -not @(Get-Item -LiteralPath $AssocMarker).Property) {
+        Remove-Item -Path $AssocMarker -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    Write-Ok ("removed: {0}" -f ($removed -join ' '))
+    return 0
+}
+
 function Show-Status {
     Write-Head "SASAMI2k portable"
     Write-Info ("Folder   : {0}" -f $Root)
@@ -259,6 +456,23 @@ function Show-Status {
         else {
             Write-Warn2 ("{0,-13} {1}  -> not registered" -f $f.File, $f.Clsid)
         }
+    }
+
+    Write-Head "File associations"
+    $recordedExts = @(Get-RecordedExtensions)
+    if ($recordedExts.Count) {
+        Write-Ok ("per-user: {0}" -f ($recordedExts -join ' '))
+    }
+    else {
+        Write-Info "none (opt in with Associate.cmd)"
+    }
+
+    Write-Head "Integrity"
+    if (Test-Path -LiteralPath $ManifestPath) {
+        Write-Info "HASHES.txt present; run 'verify' for a full check"
+    }
+    else {
+        Write-Warn2 "HASHES.txt missing"
     }
 }
 
@@ -325,6 +539,12 @@ try {
     switch ($Action) {
         'status' { Show-Status; exit 0 }
 
+        'verify' { exit (Invoke-Verify) }
+
+        'associate' { exit (Invoke-Associate) }
+
+        'unassociate' { exit (Invoke-Unassociate) }
+
         'register' { exit (Invoke-Register) }
 
         'unregister' { exit (Invoke-Unregister) }
@@ -345,11 +565,19 @@ try {
             }
             if ($argList.Count) { Write-Info ("args: " + ($argList -join ' ')) }
 
-            # NB: Start-Process rejects an empty -ArgumentList on Windows PowerShell 5.1,
-            # so only pass the parameter when there is something to pass.
-            $startParams = @{ FilePath = $PlayerExe; WorkingDirectory = $AppDir }
-            if ($argList.Count) { $startParams['ArgumentList'] = [string[]]$argList }
-            Start-Process @startParams | Out-Null
+            # CreateProcess (UseShellExecute = $false), not Start-Process: ShellExecute
+            # routes an unsigned 2001 executable through the Attachment Manager, which
+            # raises "The publisher could not be verified" on every launch on hosts that
+            # prompt for unsigned programs. CreateProcess starts the same image silently.
+            $psi = New-Object System.Diagnostics.ProcessStartInfo
+            $psi.FileName = $PlayerExe
+            $psi.WorkingDirectory = $AppDir
+            $psi.UseShellExecute = $false
+            if ($argList.Count) {
+                # .NET Framework 4.x has no ArgumentList, so quote by hand.
+                $psi.Arguments = (($argList | ForEach-Object { '"' + ($_ -replace '"', '\"') + '"' }) -join ' ')
+            }
+            [System.Diagnostics.Process]::Start($psi) | Out-Null
             exit 0
         }
     }

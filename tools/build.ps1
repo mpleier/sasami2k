@@ -65,8 +65,12 @@ $IniOverrides = [ordered]@{
 
 # Launcher artefacts that live in the repository, not in the installer payload.
 $LauncherFiles = @('SASAMI2k.cmd','RegisterFilters.cmd','UnregisterFilters.cmd','Status.cmd',
+                   'Associate.cmd','Unassociate.cmd',
                    'README.md','PATCHES.md','HASHES.txt','.gitattributes','.gitignore')
-$LauncherTools = @('portable.ps1','extract_installer.py','compat_fixes.py','build.ps1')
+$LauncherTools = @('portable.ps1','extract_installer.py','compat_fixes.py','build.ps1',
+                   'make-singlefile.ps1','manifest.py')
+# Sub-directories under tools\ that belong to the rebuild toolchain (copied whole).
+$LauncherToolDirs = @('singlefile')
 
 function Write-Step { param($Text) Write-Host "==> $Text" -ForegroundColor Cyan }
 function Write-Ok   { param($Text) Write-Host "    $Text" -ForegroundColor Green }
@@ -203,6 +207,12 @@ try {
     foreach ($f in $LauncherTools) {
         $src = Join-Path $ScriptDir $f
         if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination (Join-Path $OutDir 'tools') -Force }
+    }
+    foreach ($d in $LauncherToolDirs) {
+        $src = Join-Path $ScriptDir $d
+        if (Test-Path -LiteralPath $src) {
+            Copy-Item -LiteralPath $src -Destination (Join-Path $OutDir 'tools') -Recurse -Force
+        }
     }
     Write-Ok "launcher scripts in place"
 

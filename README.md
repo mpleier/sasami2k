@@ -34,10 +34,14 @@ SASAMI2k.cmd            Launcher: ensures filter registration, starts the player
 RegisterFilters.cmd     Machine-wide registration (elevates via UAC)
 UnregisterFilters.cmd   Removes registration again
 Status.cmd              Shows whether the filters point at this folder
-tools/portable.ps1      The logic behind those four scripts
+                        (`Status.cmd verify` checks every shipped file instead)
+Associate.cmd           Opt-in per-user file associations (see below)
+Unassociate.cmd         Removes them again, restoring shadowed handlers
+tools/portable.ps1      The logic behind those six scripts
 tools/extract_installer.py  Re-extracts the payload from the original installer
 tools/compat_fixes.py   Reproduces the two compatibility fixes (see PATCHES.md)
 tools/build.ps1         Rebuilds the whole app\ tree from original\sasami2k_757.exe
+tools/manifest.py       Regenerates / checks HASHES.txt
 tools/upx/              Vendored UPX 4.2.4, used by the build to unpack the player
 tools/make-singlefile.ps1  Packs the built tree into one self-extracting .exe
 tools/singlefile/       Bootstrapper source for that executable
@@ -92,8 +96,12 @@ every produced file against `HASHES.txt`. A clean run ends with:
 
 ```
 ==> Verifying against HASHES.txt
-    all 39 manifest entries reproduce exactly
+    all 45 manifest entries reproduce exactly
 ```
+
+(The manifest has 52 entries; the 7 under `original\` and `tools\upx\` are
+inputs to the build rather than outputs, so they are not re-checked here.
+`Status.cmd verify` checks all 52 in place.)
 
 Requirements: Windows PowerShell 5.1 and Python 3 on `PATH`. UPX is vendored in
 `tools\upx\` (GPL, see `tools\upx\README-SASAMI2k.txt`); pass `-Upx <path>` to
@@ -113,7 +121,7 @@ the output verification. The built tree is self-contained: running its
 
 ```
 powershell -ExecutionPolicy Bypass -File tools\make-singlefile.ps1
--> build\SASAMI2k-portable.exe   (~783 KB incl. a ~774 KB payload)
+-> build\SASAMI2k-portable.exe   (~780 KiB incl. a ~770 KiB payload)
 ```
 
 The executable is a small .NET bootstrapper with a ZIP payload appended behind a
@@ -130,7 +138,7 @@ SASAMI2k-portable.exe /fullscreen "D:\movie.avi"
 ```
 
 The build self-tests: it extracts the payload to a temporary folder and compares
-every file against the source tree before reporting success (41/41 byte-identical).
+every file against the source tree before reporting success (46/46 byte-identical).
 
 Requirements: `csc.exe` from .NET Framework 4.x (present on Windows 10/11) and
 PowerShell 5.1. The payload ZIP is written with fixed entry timestamps, so building
@@ -181,7 +189,9 @@ graph and quietly never plays anything.
   documents `/unregister` as *"unregister sasami filters, and repair associated
   files"*. On this build, however, neither a normal start nor `sasami2k.exe
   /register` created or modified any file association — checked by comparing
-  `HKCU`/`HKLM` classes entries before and after.
+  `HKCU`/`HKLM` classes entries before and after. `Associate.cmd` is the
+  opt‑in alternative: it adds `HKCU\Software\Classes\SASAMI2k.Media` plus one
+  entry per extension, and `Unassociate.cmd` removes exactly that again.
 * **Files** — everything else stays inside this folder. The player writes its
   preferences to `app\SASAMI2k.ini` (and the translator to
   `app\SASAMI2k_Translator.ini`); those live files are created from the shipped
@@ -210,6 +220,50 @@ From the built‑in help:
 ```
 
 Pass them through the launcher, e.g. `SASAMI2k.cmd /maxscreen "D:\movie.avi"`.
+
+---
+
+## File associations (opt-in)
+
+A normal launch deliberately changes no file types. If you want double-click
+handling, opt in per user — no administrator rights, nothing machine-wide:
+
+```
+Associate.cmd                 # .mms .asx .smi .s2k -> SASAMI2k
+Associate.cmd .mpg .avi       # any extra extensions you want to hand over
+Unassociate.cmd               # undo, restoring whatever was there before
+```
+
+It writes one ProgID (`SASAMI2k.Media`, verbs *Play* and *Enqueue*) plus the
+extension keys under `HKCU\Software\Classes`, and records what it shadowed under
+`HKCU\Software\SASAMI2k` so `Unassociate.cmd` can put it back. `Status.cmd`
+lists the current state.
+
+Windows 11 may still keep an existing default for a well-known type: on a host
+that has `.asx` owned by Windows Media Player, double-clicking an `.asx` opens
+the system picker instead of SASAMI2k, while `.mms`, `.smi` and `.s2k` go
+straight to the player. Either use *Open with → Choose another app* once for
+such a type, or pass the file to the launcher directly.
+
+---
+
+## Checking the shipped files
+
+`HASHES.txt` is the byte-level contract of the tree, and the copy you have can
+be checked at any time without Python:
+
+```
+Status.cmd verify
+-> == Integrity check
+   manifest : 52 entries
+   all 52 shipped files match HASHES.txt
+```
+
+Every entry is compared by size and SHA-256; missing or modified files are
+listed and the script exits non-zero. Files that are not part of the shipped
+payload (build output, the live `SASAMI2k.ini`, local notes) are reported
+separately and do not fail the check. After changing any tracked file,
+regenerate the manifest with `python tools/manifest.py write`.
 
 ---
 
@@ -242,6 +296,13 @@ translator is still UPX-packed, which trips generic heuristics. The player itsel
 is shipped unpacked (see [PATCHES.md](PATCHES.md)); every file's SHA-256 is in
 `HASHES.txt`.
 
+**"The publisher could not be verified" on every launch** — the launcher starts
+the player with `CreateProcess`, so it never raises that prompt itself. If you
+see it, the player is being started through the shell by something else: a
+shortcut on the executable, an "Open with" handler pointing straight at
+`sasami2k.exe`, or a tool that calls `ShellExecute`. Point that shortcut at
+`SASAMI2k.cmd` (or add a `Run` verb) instead.
+
 ---
 
 ## Known limitations
@@ -259,6 +320,32 @@ is shipped unpacked (see [PATCHES.md](PATCHES.md)); every file's SHA-256 is in
     its merit cannot be lowered either.
   * Workarounds: let K-Lite's Codec Tweak Tool register LAV properly, or remux
     the audio to 48 kHz.
+
+* **Audio-only files crash on open.** Playing a bare audio file — a 44.1 kHz or
+  48 kHz PCM `.wav`, or an `.mp3` — raises
+  *"Unexpected Error (Access violation at address 0047D540 in module
+  'sasami2k.exe'. Read of address 00000000)"* and the player sits there with the
+  dialog. The fault is in the 2001 player itself, not in the compatibility
+  patches: the same address faults when the `auxGetNumDevs` thunk is restored to
+  the shipped code. The crash is not triggered by the media, it is triggered by
+  the *absence of a video stream* — an audio-only graph has no video window for
+  the render path it takes.
+  * Workaround: give the file a video track. Remuxing the audio next to a static
+    black video already works (verified with a 1 fps MPEG-4 video track):
+    `ffmpeg -f lavfi -i color=black:s=320x240:r=1 -i in.wav -shortest -c:v mpeg4 -c:a pcm_s16le out.avi`
+
+* **Modern codecs play fine where DirectShow can decode them.** This build was
+  written for DivX-era MPEG-1/MPEG-4, but the graph is built by the system, so
+  the decoders Windows 10/11 ships (and any third-party DirectShow decoder
+  registered as a real filter) are used: H.264 in `.mp4`/`.mkv` and HEVC in
+  `.mp4` play, with AAC audio, at the right size. Nothing here needs patching to
+  get that — it is a property of the DirectShow graph, not of the player.
+
+* **A 32-bit player sees only 32-bit DirectShow filters.** A modern codec pack
+  that registers only 64-bit modules (K-Lite's LAV install on this machine is
+  COM-registered but absent from the 32-bit filter mapper) is invisible to
+  SASAMI2k. That is why swapping the MPEG audio decoder for LAV needs the codec
+  pack's own "register LAV Filters" step first.
 
 ## Provenance and verification
 

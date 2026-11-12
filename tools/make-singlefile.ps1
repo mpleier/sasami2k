@@ -151,7 +151,16 @@ try {
         Write-Step "Self-test: extract and compare with the source tree"
         $tmp = Join-Path $work 'extract-test'
         if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Recurse -Force }
-        $p = Start-Process -FilePath $OutFile -ArgumentList @('--s2k-extract-only', '--s2k-target', "`"$tmp`"") -PassThru -Wait
+        # CreateProcess, not Start-Process: the freshly built bootstrapper is
+        # unsigned, and going through the shell raises "The publisher could not
+        # be verified" on hosts that prompt for unsigned programs - which blocks
+        # this self-test forever instead of failing.
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = $OutFile
+        $psi.Arguments = '--s2k-extract-only --s2k-target "' + $tmp + '"'
+        $psi.UseShellExecute = $false
+        $p = [System.Diagnostics.Process]::Start($psi)
+        $p.WaitForExit()
         if ($p.ExitCode -ne 0) { throw "self-extraction failed with exit code $($p.ExitCode)" }
 
         $produced = Get-ChildItem -LiteralPath $tmp -Recurse -File |
