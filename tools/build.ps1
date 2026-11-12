@@ -68,7 +68,7 @@ $LauncherFiles = @('SASAMI2k.cmd','RegisterFilters.cmd','UnregisterFilters.cmd',
                    'Associate.cmd','Unassociate.cmd',
                    'README.md','PATCHES.md','HASHES.txt','.gitattributes','.gitignore')
 $LauncherTools = @('portable.ps1','extract_installer.py','compat_fixes.py','build.ps1',
-                   'make-singlefile.ps1','manifest.py')
+                   'make-singlefile.ps1','manifest.py','lav-audio.ps1')
 # Sub-directories under tools\ that belong to the rebuild toolchain (copied whole).
 $LauncherToolDirs = @('singlefile')
 

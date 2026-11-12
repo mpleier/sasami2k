@@ -42,6 +42,7 @@ tools/extract_installer.py  Re-extracts the payload from the original installer
 tools/compat_fixes.py   Reproduces the two compatibility fixes (see PATCHES.md)
 tools/build.ps1         Rebuilds the whole app\ tree from original\sasami2k_757.exe
 tools/manifest.py       Regenerates / checks HASHES.txt
+tools/lav-audio.ps1     Shows (and optionally sets) the 32-bit audio decoder merit
 tools/upx/              Vendored UPX 4.2.4, used by the build to unpack the player
 tools/make-singlefile.ps1  Packs the built tree into one self-extracting .exe
 tools/singlefile/       Bootstrapper source for that executable
@@ -96,12 +97,12 @@ every produced file against `HASHES.txt`. A clean run ends with:
 
 ```
 ==> Verifying against HASHES.txt
-    all 45 manifest entries reproduce exactly
+    all 46 manifest entries reproduce exactly
 ```
 
-(The manifest has 52 entries; the 7 under `original\` and `tools\upx\` are
+(The manifest has 53 entries; the 7 under `original\` and `tools\upx\` are
 inputs to the build rather than outputs, so they are not re-checked here.
-`Status.cmd verify` checks all 52 in place.)
+`Status.cmd verify` checks all 53 in place.)
 
 Requirements: Windows PowerShell 5.1 and Python 3 on `PATH`. UPX is vendored in
 `tools\upx\` (GPL, see `tools\upx\README-SASAMI2k.txt`); pass `-Upx <path>` to
@@ -138,7 +139,7 @@ SASAMI2k-portable.exe /fullscreen "D:\movie.avi"
 ```
 
 The build self-tests: it extracts the payload to a temporary folder and compares
-every file against the source tree before reporting success (46/46 byte-identical).
+every file against the source tree before reporting success (47/47 byte-identical).
 
 Requirements: `csc.exe` from .NET Framework 4.x (present on Windows 10/11) and
 PowerShell 5.1. The payload ZIP is written with fixed entry timestamps, so building
@@ -255,8 +256,8 @@ be checked at any time without Python:
 ```
 Status.cmd verify
 -> == Integrity check
-   manifest : 52 entries
-   all 52 shipped files match HASHES.txt
+   manifest : 53 entries
+   all 53 shipped files match HASHES.txt
 ```
 
 Every entry is compared by size and SHA-256; missing or modified files are
@@ -307,19 +308,31 @@ shortcut on the executable, an "Open with" handler pointing straight at
 
 ## Known limitations
 
-* **44.1 kHz MPEG audio crackles.** Clips whose audio is MPEG-1 Layer II at
-  44.1 kHz - typical of the old `.mpg` AMV rips - play with crackling/buzzing.
-  The same video with 48 kHz MPEG audio, or with uncompressed PCM audio, plays
-  cleanly, so the fault is in the decoder DirectShow picks: the built-in
-  `quartz.dll` "MPEG Audio Codec" (`{4A2286E0-7BEF-11CE-9BD9-0000E202599C}`), the
-  only MPEG audio decoder the filter graph builder will select on this system.
-  * Swapping it is not possible with registry values alone: LAV Filters (installed
-    via K-Lite) is registered only as a COM server, with no DirectShow
-    filter-mapper entry, so the graph builder never considers it; and Microsoft's
-    decoder key is owned by `TrustedInstaller` with Administrators read-only, so
-    its merit cannot be lowered either.
-  * Workarounds: let K-Lite's Codec Tweak Tool register LAV properly, or remux
-    the audio to 48 kHz.
+* **44.1 kHz MPEG audio — measure before blaming the decoder.** Clips whose audio
+  is MPEG-1 Layer II at 44.1 kHz (typical of the old `.mpg` AMV rips) were
+  reported to crackle/buzz, while the same video at 48 kHz or with PCM audio
+  played cleanly. Re-tested on Windows 11 (26200) by capturing the player's own
+  output through a WASAPI loopback of the default render endpoint: a 44.1 kHz MP2
+  probe and a 48 kHz MP2 probe come out **indistinguishable** — median RMS
+  0.0326 in both, no dropouts, no sample-jump spikes, high-frequency (above
+  2 kHz) energy −56.2 dB vs −56.1 dB.
+  * The earlier explanation (*"LAV is registered only as a COM server, so the
+    graph builder can only pick quartz"*) does not hold on this machine: the
+    32-bit filter mapper does register LAV Audio Decoder
+    (`{E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491}`) — its instance keys live under
+    `HKLM\SOFTWARE\Classes\Wow6432Node\CLSID\{083863F1-70DE-11D0-BD40-00A0C911CE86}\Instance`,
+    not in the `CLSID\…\Instance` shape a quick look suggests — and LAV's
+    `LAVAudio.ax`, `avcodec`, `swresample` are loaded by the player while that
+    file plays. Both LAV Audio Decoder and quartz's "MPEG Audio Decoder" were
+    registered *without* an explicit merit, so the selection was a tie-break
+    rather than a preference.
+  * `tools\lav-audio.ps1 status` lists the audio decoders a 32-bit graph can
+    choose, with merit and module; `tools\lav-audio.ps1 prefer` gives LAV Audio
+    Decoder an explicit `MERIT_PREFERRED` (one UAC prompt; `tools\lav-audio.ps1
+    default` removes that value again). Setting it changed the measured output by
+    nothing — LAV was already the decoder in use.
+  * If a specific file still crackles, remux its audio to 48 kHz; that path is
+    the one that measures clean here.
 
 * **Audio-only files crash on open.** Playing a bare audio file — a 44.1 kHz or
   48 kHz PCM `.wav`, or an `.mp3` — raises
@@ -341,11 +354,13 @@ shortcut on the executable, an "Open with" handler pointing straight at
   `.mp4` play, with AAC audio, at the right size. Nothing here needs patching to
   get that — it is a property of the DirectShow graph, not of the player.
 
-* **A 32-bit player sees only 32-bit DirectShow filters.** A modern codec pack
-  that registers only 64-bit modules (K-Lite's LAV install on this machine is
-  COM-registered but absent from the 32-bit filter mapper) is invisible to
-  SASAMI2k. That is why swapping the MPEG audio decoder for LAV needs the codec
-  pack's own "register LAV Filters" step first.
+* **A 32-bit player sees only 32-bit DirectShow filters.** A codec pack that
+  registers only 64-bit modules is invisible to SASAMI2k, so check the 32-bit
+  view (`HKLM\SOFTWARE\Classes\Wow6432Node\…`) before concluding a decoder is
+  installed. K-Lite's LAV is registered in both views here — including the
+  32-bit filter-mapper entries — which is why LAV is in the player's graph; what
+  it lacked was an explicit merit. `tools\lav-audio.ps1 status` shows the
+  decoders that a 32-bit graph can actually choose.
 
 ## Provenance and verification
 
