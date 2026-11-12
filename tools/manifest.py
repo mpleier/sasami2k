@@ -29,7 +29,6 @@ IGNORED_NAMES = {
     "SASAMI2k.ini",
     "SASAMI2k_Translator.ini",
     "sasami2k.m3u",
-    "IDEA.md",
 }
 
 

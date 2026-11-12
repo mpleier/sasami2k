@@ -97,12 +97,12 @@ every produced file against `HASHES.txt`. A clean run ends with:
 
 ```
 ==> Verifying against HASHES.txt
-    all 46 manifest entries reproduce exactly
+    all 47 manifest entries reproduce exactly
 ```
 
-(The manifest has 53 entries; the 7 under `original\` and `tools\upx\` are
+(The manifest has 54 entries; the 7 under `original\` and `tools\upx\` are
 inputs to the build rather than outputs, so they are not re-checked here.
-`Status.cmd verify` checks all 53 in place.)
+`Status.cmd verify` checks all 54 in place.)
 
 Requirements: Windows PowerShell 5.1 and Python 3 on `PATH`. UPX is vendored in
 `tools\upx\` (GPL, see `tools\upx\README-SASAMI2k.txt`); pass `-Upx <path>` to
@@ -139,7 +139,7 @@ SASAMI2k-portable.exe /fullscreen "D:\movie.avi"
 ```
 
 The build self-tests: it extracts the payload to a temporary folder and compares
-every file against the source tree before reporting success (47/47 byte-identical).
+every file against the source tree before reporting success (48/48 byte-identical).
 
 Requirements: `csc.exe` from .NET Framework 4.x (present on Windows 10/11) and
 PowerShell 5.1. The payload ZIP is written with fixed entry timestamps, so the
@@ -259,8 +259,8 @@ be checked at any time without Python:
 ```
 Status.cmd verify
 -> == Integrity check
-   manifest : 53 entries
-   all 53 shipped files match HASHES.txt
+   manifest : 54 entries
+   all 54 shipped files match HASHES.txt
 ```
 
 Every entry is compared by size and SHA-256; missing or modified files are

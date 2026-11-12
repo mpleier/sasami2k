@@ -243,9 +243,9 @@ function Invoke-PerUserUnregister([object[]]$List) {
 $ManifestPath = Join-Path $Root 'HASHES.txt'
 
 # Repository files that are intentionally not in the manifest: build output,
-# per-user runtime state, and scratch notes.
+# per-user runtime state.
 $ManifestIgnorePrefixes = @('build/', '.git/')
-$ManifestIgnoreNames    = @('HASHES.txt', 'SASAMI2k.ini', 'SASAMI2k_Translator.ini', 'sasami2k.m3u', 'IDEA.md')
+$ManifestIgnoreNames    = @('HASHES.txt', 'SASAMI2k.ini', 'SASAMI2k_Translator.ini', 'sasami2k.m3u')
 
 function Read-Manifest {
     $entries = [ordered]@{}
