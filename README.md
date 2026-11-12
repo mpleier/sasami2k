@@ -142,8 +142,11 @@ The build self-tests: it extracts the payload to a temporary folder and compares
 every file against the source tree before reporting success (47/47 byte-identical).
 
 Requirements: `csc.exe` from .NET Framework 4.x (present on Windows 10/11) and
-PowerShell 5.1. The payload ZIP is written with fixed entry timestamps, so building
-the same tree twice produces the same executable.
+PowerShell 5.1. The payload ZIP is written with fixed entry timestamps, so the
+packed tree is byte-identical build to build; the .exe itself is not, because the
+.NET stub carries a compiler-generated PE timestamp and module id (measured: 18
+bytes differ between two runs of the same tree). Compare the self-test result and
+the payload, not the whole-file hash, when checking reproducibility.
 
 ---
 
