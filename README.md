@@ -70,9 +70,10 @@ original/
   sasami2000.packed.exe       The player exactly as shipped (UPX-packed, unpatched)
 ```
 
-Two small compatibility fixes were necessary to make a 2001 DirectShow app start
-on Windows 10/11: the skin bitmaps had to be re-encoded from RLE8, and one
-`auxGetNumDevs` import thunk is neutralised. Both are documented byte-for-byte,
+Three compatibility fixes were necessary to make a 2001 DirectShow app usable on
+Windows 10/11: the skin bitmaps had to be re-encoded from RLE8, one
+`auxGetNumDevs` import thunk is neutralised, and the video-only UI block is now
+gated on its interface so audio-only files no longer fault. Both are documented byte-for-byte,
 with symptoms, evidence and reproduction steps, in **[PATCHES.md](PATCHES.md)**;
 `original/` keeps the untouched binaries.
 
@@ -337,18 +338,14 @@ shortcut on the executable, an "Open with" handler pointing straight at
   * If a specific file still crackles, remux its audio to 48 kHz; that path is
     the one that measures clean here.
 
-* **Audio-only files crash on open.** Playing a bare audio file — a 44.1 kHz or
-  48 kHz PCM `.wav`, or an `.mp3` — raises
-  *"Unexpected Error (Access violation at address 0047D540 in module
-  'sasami2k.exe'. Read of address 00000000)"* and the player sits there with the
-  dialog. The fault is in the 2001 player itself, not in the compatibility
-  patches: the same address faults when the `auxGetNumDevs` thunk is restored to
-  the shipped code. The crash is not triggered by the media, it is triggered by
-  the *absence of a video stream* — an audio-only graph has no video window for
-  the render path it takes.
-  * Workaround: give the file a video track. Remuxing the audio next to a static
-    black video already works (verified with a 1 fps MPEG-4 video track):
-    `ffmpeg -f lavfi -i color=black:s=320x240:r=1 -i in.wav -shortest -c:v mpeg4 -c:a pcm_s16le out.avi`
+* **Audio-only files used to crash — fixed here.** Playing a bare `.wav` or
+  `.mp3` raised *"Unexpected Error (Access violation at address 0047D540 … Read of
+  address 00000000)"*. The cause was a video-only UI block that dereferenced the
+  video interface (`this+0x0A58`) without a null test; with no video stream the
+  field is NULL. The portable build gates that block, so audio-only files now
+  open normally (see [PATCHES.md](PATCHES.md), fix 4). If you run the untouched
+  2001 binary, the workaround is to give the file a video track:
+  `ffmpeg -f lavfi -i color=black:s=320x240:r=1 -i in.wav -shortest -c:v mpeg4 -c:a pcm_s16le out.avi`
 
 * **Modern codecs play fine where DirectShow can decode them.** This build was
   written for DivX-era MPEG-1/MPEG-4, but the graph is built by the system, so
@@ -380,8 +377,9 @@ Intentional changes to the shipped data, all documented:
 
 * `app\SASAMI2k.default.ini` — `Sasami.LastDirectory` reset (the original pointed
   at a folder on the author's machine); the live `.ini` is generated from this file.
-* `app\sasami2k.exe` — unpacked, one import thunk patched, and renamed from
-  `sasami2000.exe` to escape a broken Windows compatibility shim (PATCHES.md, fixes 2 and 3).
+* `app\sasami2k.exe` — unpacked, one import thunk patched, the video-only UI
+  block gated, and renamed from `sasami2000.exe` to escape a broken Windows
+  compatibility shim (PATCHES.md, fixes 2, 3 and 4).
 * `app\Imgs\*.bmp` — seven RLE8 bitmaps re-encoded as BI_RGB (PATCHES.md, fix 1).
 
 `tools/extract_installer.py` and `tools/compat_fixes.py` reproduce both the

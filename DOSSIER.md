@@ -16,7 +16,7 @@ instruction bytes, register state, stack.
 
 ---
 
-## 1. Audio-only crash (the open defect)
+## 1. Audio-only crash (fixed in this build)
 
 **Observed.** Playing a `.wav` (44.1 or 48 kHz) or `.mp3` raises a first-chance
 `0xC0000005` in the main thread at VA `0x0047D540`, "read of address 0x00000000",
@@ -58,7 +58,7 @@ exactly the file's `8B 00` at `0x0047D540`. Verified by locating the in-memory
 byte patterns in the file at their RVA-derived offsets (delta 0x0 for
 `0x00404000`, `0x0047D4D4` and `0x0047D530`).
 
-**Fix candidate (designed, not applied).** The call site needs 16 bytes —
+**Fix (applied, verified).** The call site needs 16 bytes —
 `mov eax,[eax+0xA58]` (6), `test eax,eax` (2), `jz +6` (2), `push eax` (1),
 `mov eax,[eax]` (2), `call [eax+0x28]` (3) — but only 12 are available before
 `0x0047D545`, and skipping the call must not disturb the stack, since the callee

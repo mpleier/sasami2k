@@ -156,6 +156,65 @@ host the prompt appeared, nobody answered it and the build hung forever after
 reporting a finished executable. It now uses `CreateProcess` + `WaitForExit`, and
 a full run ends with `all 46 files extract byte-identically`.
 
+
+---
+
+## Fix 4 - the video-only UI block is guarded (`mov eax,[eax]` at `0x0047d540`)
+
+**Symptom:** opening any audio-only file - a `.wav` at 44.1 or 48 kHz, or an
+`.mp3` - raised *"Unexpected Error (Access violation at address 0047D540 in
+module 'sasami2k.exe'. Read of address 00000000)"* and left the player sitting
+behind that dialog. Files with a video stream played normally.
+
+**Cause:** the player reconfigures its video controls in a block that starts at
+`0x0047d4f1`. The block assumes the interface at `this+0x0A58` exists:
+
+```
+0x0047d4f1  push 0x480088
+0x0047d4f6  mov  eax,[ebp-8]
+0x0047d4f9  mov  eax,[eax+0xa58]     ; NULL when the graph has no video stream
+0x0047d4ff  push eax
+0x0047d500  mov  eax,[ebp-8]
+0x0047d503  mov  eax,[eax+0xbb8]     ; the graph control - always present
+...
+0x0047d539  mov  eax,[eax+0xa58]
+0x0047d53f  push eax
+0x0047d540  mov  eax,[eax]           ; AV: read of address 0
+0x0047d542  call dword ptr [eax+0x28]
+```
+
+Every other COM call in the routine guards its pointer - the helper at
+`0x004724e4` opens with `cmp dword [ecx+0xb34],0 / je` - but this block does not.
+With an audio-only graph the field stays NULL, so the dereference faults.
+Confirmed with a purpose-built 32-bit Win32 debugger: first-chance `0xC0000005`,
+main thread, `eax = 0`, `eip = 0x0047d540`, return chain `0x487d97 -> 0x48bdac ->
+0x42d59b -> 0x42d297 -> 0x434174 -> 0x497ed3`.
+
+**Fix:** gate the block on the field, leaving its own "no video" branch intact.
+The five-byte `push 0x480088` at `0x0047d4f1` becomes a jump to a 32-byte stub in
+the zero padding at the end of CODE (`0x497f00`):
+
+```
+push 0x480088            ; original first argument
+mov  eax,[ebp-8]
+mov  eax,[eax+0xa58]
+test eax,eax
+jz   .no_video
+push eax                 ; original second argument
+jmp  0x0047d500          ; into the block
+.no_video:
+add  esp,4               ; drop the argument already pushed
+jmp  0x0047d4db          ; the block's own "gate was false" path
+```
+
+The CODE section's `VirtualSize` grows from `0x96efc` to `0x97000` so the loader
+maps those padding bytes instead of zero-filling them (`SizeOfImage` already
+covered the range, and the next section starts at `0x98000`).
+
+**Verified** by measurement, not by inspection: audio-only `.wav` and `.mp3` open
+with no dialog, and an MPEG-1/MP2 `.mpg` still builds its graph and renders
+(322x242 window, changing frame fingerprint) exactly as before the patch.
+
 ---
 
 ## What was *not* changed
