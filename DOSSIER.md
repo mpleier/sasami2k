@@ -27,60 +27,46 @@ eip=0x0047D540 esp=0x001AF6A4 ebp=0x001AFB18
 eax=0 ebx=0 ecx=0x9CF edx=0 esi=0x20 edi=0x0046D00C
 ```
 
-**Observed.** The instruction stream in the running image at the fault reads:
+**Observed.** The instruction stream at the fault, read from the running process:
 
 ```
-call 0x405C1C
-push eax
-mov  eax, [ebp-8]
-mov  eax, [eax+0x0A58]      ; the interface pointer stored at this+0xA58
-push eax
-mov  eax, [eax]             ; 0x0047D540 — faults because that pointer is NULL
-call dword ptr [eax+0x28]   ; vtable slot 10
+0x0047D535  push eax                  ; argument: object returned by 0x405C1C
+0x0047D536  mov  eax, [ebp-8]         ; this
+0x0047D539  mov  eax, [eax+0x0A58]    ; interface field
+0x0047D53F  push eax                  ; argument: that interface
+0x0047D540  mov  eax, [eax]           ; FAULT — vtable of a NULL pointer
+0x0047D542  call dword ptr [eax+0x28] ; slot 10
+0x0047D545  lea  eax, [ebp-0x10]      ; execution resumes here when the call returns
 ```
 
-**Derived.** This is an unguarded COM dispatch: the player dereferences an
-interface pointer held at `this+0x0A58` without a null test, then calls its 11th
-vtable entry. Every other site inspected in the same routine *is* guarded — the
-helper at `0x004724E4` begins `cmp dword [ecx+0xB34], 0 / je …` before calling
-`[eax+0x10]` — so this path is an oversight, not a convention.
+**Derived.** This is the plain Delphi interface-call idiom `push obj; mov eax,[obj];
+call [eax+slot]` applied to the pointer held at `this+0x0A58`, with no null test.
+The same idiom appears twice *earlier in the same basic block* against
+`this+0x0BB8` (`0x0047D500` and `0x0047D51E`, slot `+0x0C`) and never faults,
+because that interface always exists. `this+0x0A58` is the one that only exists
+when the graph carries a video stream — which is exactly the observed condition:
+audio-only faults, video+audio plays.
 
-**Observed.** The stack walk back from the fault:
+**Correction to an earlier reading.** A first pass claimed the on-disk bytes at
+`0x0047D530` differed from the running image and treated that as an unresolved
+blocker. It was a tooling bug: `pefile.get_data()` takes an **RVA**, and the
+script passed it a file offset, so the comparison read the wrong bytes (and the
+disassembly in that pass was shifted, which produced plausible-looking but wrong
+code). Re-read by RVA, the file and the image agree byte for byte, the exe needs
+no runtime self-patching to explain anything, and the faulting instruction is
+exactly the file's `8B 00` at `0x0047D540`. Verified by locating the in-memory
+byte patterns in the file at their RVA-derived offsets (delta 0x0 for
+`0x00404000`, `0x0047D4D4` and `0x0047D530`).
 
-```
-#0 0x001AFB18 ret 0x00487D97
-#1 0x001AFBB8 ret 0x0048BDAC
-#2 0x001AFDD4 ret 0x0042D59B
-#3 0x001AFDF8 ret 0x0042D297
-#4 0x001AFF3C ret 0x00434174
-#5 0x001AFF60 ret 0x00497ED3
-```
-
-**Inferred.** The chain starts in Delphi message/paint code (`0x497ED3`,
-`0x434174`) and reaches the video-side setup through the form's own methods —
-i.e. the player is updating a video control while the graph has no video stream,
-which is exactly the condition that leaves `this+0xA58` NULL and explains why
-audio-only files fault while video+audio files play.
-
-**Open unknown (blocking a fix).** The bytes on disk at `0x0047D530` are *not* the
-bytes in the running process:
-
-```
-file   : 6A 00 6A 01 6A 00 6A 00 33 D2 8B 45 F8 E8 A2 4F …
-memory : E8 E7 86 F8 FF 50 8B 45 F8 8B 80 58 0A 00 00 50 8B 00 FF 50 28 …
-```
-
-The executable has no relocation directory (`IMAGE_DIRECTORY_ENTRY_BASERELOC`
-RVA `0`) and `DllCharacteristics = 0`, so the loader cannot have rebased it and
-the image base is the file's `0x400000`. Either the player patches its own code
-at startup, or the running image is not the file we ship. Until that is settled,
-a byte-level fix cannot be designed — patching the file at `0x47D540` would hit
-different instructions than the ones that fault.
-
-**Probe that would settle it:** start the process suspended, read the PE header
-and a handful of landmark bytes in-process (`0x00401000`, `0x0047D4D4`,
-`0x00405C1C`) and diff them against the file; a handful of differing sites means
-a self-patch, a wholesale difference means an image mismatch.
+**Fix candidate (designed, not applied).** The call site needs 16 bytes —
+`mov eax,[eax+0xA58]` (6), `test eax,eax` (2), `jz +6` (2), `push eax` (1),
+`mov eax,[eax]` (2), `call [eax+0x28]` (3) — but only 12 are available before
+`0x0047D545`, and skipping the call must not disturb the stack, since the callee
+consumes the pushed interface. The clean shape is therefore a five-byte
+`jmp` placed at `0x0047D539` into the CODE section's slack
+(`0x97EFC`–`0x98000`, ~0x104 mapped-but-unused bytes), the guarded sequence
+there, and a `jmp 0x0047D545` back. It must be verified twice: audio-only opens
+with no dialog, and video+audio still renders frames.
 
 ---
 
@@ -150,5 +136,6 @@ which also makes the whole merit/registry machinery unnecessary.
    §2 and §3 are the two extractions worth doing before writing any code.
 3. The audio-only crash is a genuine null-interface bug in the 2001 code, not an
    environment artefact — a rebuild deletes the defect rather than porting it.
-4. Nothing here justifies a byte-level patch of the shipped binary yet: the
-   on-disk/in-memory mismatch in §1 must be explained first.
+4. The audio-only crash is patchable without touching anything else: one guard,
+   one code cave, two tests. It is worth doing before any rebuild, because it
+   proves the 2001 binary can still be corrected rather than merely wrapped.
