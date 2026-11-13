@@ -65,7 +65,7 @@ $IniOverrides = [ordered]@{
 
 # Launcher artefacts that live in the repository, not in the installer payload.
 $LauncherFiles = @('SASAMI2k.cmd','RegisterFilters.cmd','UnregisterFilters.cmd','Status.cmd',
-                   'Associate.cmd','Unassociate.cmd','IDEA.md',
+                   'Associate.cmd','Unassociate.cmd','IDEA.md','DOSSIER.md',
                    'README.md','PATCHES.md','HASHES.txt','.gitattributes','.gitignore')
 $LauncherTools = @('portable.ps1','extract_installer.py','compat_fixes.py','build.ps1',
                    'make-singlefile.ps1','manifest.py','lav-audio.ps1')
